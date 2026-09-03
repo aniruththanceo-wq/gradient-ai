@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gradient-ai-postgres
+    environment:
+      POSTGRES_DB: gradient_ai
+      POSTGRES_USER: gradient
+      POSTGRES_PASSWORD: gradient
+    ports:
+      - "5432:5432"
+    volumes:
+      - gradient_ai_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gradient -d gradient_ai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  gradient_ai_pgdata:
+

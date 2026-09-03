@@ -1,0 +1,41 @@
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Database/runtime
+*.db
+*.sqlite
+*.sqlite3
+reports/generated/
+!reports/generated/.gitkeep
+
+# ML raw data
+ml/data/processed/*.csv
+ml/data/raw/*.csv

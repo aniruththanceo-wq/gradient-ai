@@ -1,0 +1,17 @@
+{
+  "name": "gradient-ai-monorepo",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "cd backend && uvicorn app.main:app --reload",
+    "test:frontend": "npm --prefix frontend test",
+    "test:backend": "cd backend && pytest",
+    "lint:frontend": "npm --prefix frontend run lint",
+    "train:ml": "python ml/scripts/train_all.py"
+  },
+  "engines": {
+    "node": ">=22",
+    "npm": ">=10"
+  }
+}
+
