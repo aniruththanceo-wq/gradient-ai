@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiFetch, getApiBaseUrl } from "@/lib/api";
 import type {
   AcademicAnalysis,
   AcademicPredictionResult,
@@ -217,6 +217,5 @@ export async function createPlacementReport(): Promise<ReportResult> {
 }
 
 export function getReportDownloadUrl(reportId: string): string {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
-  return `${base}/reports/${reportId}/download`;
+  return `${getApiBaseUrl()}/reports/${reportId}/download`;
 }

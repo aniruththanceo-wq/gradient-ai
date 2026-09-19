@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { AmbientBackground } from "@/components/layout/ambient-background";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,11 +20,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" data-scroll-behavior="smooth">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
       </head>
-      <body>{children}</body>
+      <body>
+        <AmbientBackground />
+        {children}
+      </body>
     </html>
   );
 }

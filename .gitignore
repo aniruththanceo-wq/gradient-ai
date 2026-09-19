@@ -34,6 +34,7 @@ coverage/
 *.sqlite
 *.sqlite3
 reports/generated/
+backend/reports/generated/
 !reports/generated/.gitkeep
 
 # ML raw data

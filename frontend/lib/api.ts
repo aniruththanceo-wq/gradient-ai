@@ -1,11 +1,77 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+const DEFAULT_API_BASE_URL = "http://localhost:8000/api/v1";
+const API_BASE_URL = normalizeBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL);
+
+export type ApiErrorKind = "network" | "http" | "parse";
 
 export class ApiError extends Error {
   status: number;
+  kind: ApiErrorKind;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, kind: ApiErrorKind = "http") {
     super(message);
+    this.name = "ApiError";
     this.status = status;
+    this.kind = kind;
+  }
+}
+
+function normalizeBaseUrl(baseUrl: string): string {
+  return baseUrl.trim().replace(/\/+$/, "");
+}
+
+function buildApiUrl(path: string): string {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  if (API_BASE_URL.endsWith("/api/v1") && normalizedPath.startsWith("/api/v1/")) {
+    return `${API_BASE_URL}${normalizedPath.slice("/api/v1".length)}`;
+  }
+  return `${API_BASE_URL}${normalizedPath}`;
+}
+
+function headersFrom(initHeaders: RequestInit["headers"], hasJsonBody: boolean): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (hasJsonBody) {
+    headers["Content-Type"] = "application/json";
+  }
+  if (initHeaders instanceof Headers) {
+    initHeaders.forEach((value, key) => {
+      headers[key] = value;
+    });
+  } else if (Array.isArray(initHeaders)) {
+    for (const [key, value] of initHeaders) {
+      headers[key] = value;
+    }
+  } else if (initHeaders) {
+    Object.assign(headers, initHeaders as Record<string, string>);
+  }
+  return headers;
+}
+
+async function parseErrorMessage(response: Response): Promise<string> {
+  const contentType = response.headers.get("content-type") ?? "";
+  try {
+    if (contentType.includes("application/json")) {
+      const body = await response.json();
+      return body.detail ?? body.error?.message ?? `Gradient AI API returned HTTP ${response.status}.`;
+    }
+    const text = await response.text();
+    return text || response.statusText || `Gradient AI API returned HTTP ${response.status}.`;
+  } catch {
+    return response.statusText || `Gradient AI API returned HTTP ${response.status}.`;
+  }
+}
+
+async function parseSuccessBody<T>(response: Response): Promise<T> {
+  if (response.status === 204) {
+    return undefined as T;
+  }
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    return undefined as T;
+  }
+  try {
+    return (await response.json()) as T;
+  } catch (error) {
+    throw new ApiError(response.status, "Gradient AI returned an invalid JSON response.", "parse");
   }
 }
 
@@ -28,34 +94,32 @@ export function setStoredToken(token: string | null): void {
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getStoredToken();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...((init.headers as Record<string, string>) ?? {}),
-  };
+  const hasJsonBody = typeof init.body === "string";
+  const headers = headersFrom(init.headers, hasJsonBody);
+  if (token && !headers.Authorization) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    credentials: "include",
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(buildApiUrl(path), {
+      ...init,
+      credentials: "include",
+      headers,
+    });
+  } catch (error) {
+    throw new ApiError(
+      0,
+      `Unable to connect to Gradient AI backend at ${API_BASE_URL}. Check that the FastAPI server is running and NEXT_PUBLIC_API_BASE_URL is correct.`,
+      "network",
+    );
+  }
 
   if (!response.ok) {
-    let message = "Gradient AI could not complete the request.";
-    try {
-      const body = await response.json();
-      message = body.detail ?? body.error?.message ?? message;
-    } catch {
-      message = response.statusText || message;
-    }
-    throw new ApiError(response.status, message);
+    throw new ApiError(response.status, await parseErrorMessage(response), "http");
   }
 
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return response.json() as Promise<T>;
+  return parseSuccessBody<T>(response);
 }
 
 export async function downloadReportPdf(reportId: string, filename: string): Promise<void> {
@@ -65,13 +129,22 @@ export async function downloadReportPdf(reportId: string, filename: string): Pro
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}/reports/${reportId}/download`, {
-    credentials: "include",
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(buildApiUrl(`/reports/${reportId}/download`), {
+      credentials: "include",
+      headers,
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      `Unable to connect to Gradient AI backend at ${API_BASE_URL}. Check that the FastAPI server is running before downloading reports.`,
+      "network",
+    );
+  }
 
   if (!response.ok) {
-    throw new ApiError(response.status, `Failed to download report PDF (HTTP ${response.status})`);
+    throw new ApiError(response.status, await parseErrorMessage(response));
   }
 
   const blob = await response.blob();
@@ -83,4 +156,8 @@ export async function downloadReportPdf(reportId: string, filename: string): Pro
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+export function getApiBaseUrl(): string {
+  return API_BASE_URL;
 }

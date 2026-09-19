@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { PageTransition, GlowingCard } from "@/components/motion/motion-primitives";
 import { getProfile, saveStudentProfile, type StudentProfilePayload } from "@/services/gradient-api";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -67,7 +68,7 @@ export default function OnboardingPage() {
   const isSeniorYear = form.academic_year >= 3;
 
   return (
-    <div className="page-shell">
+    <PageTransition className="page-shell">
       <AppNav />
 
       <main className="section-sm" style={{ flex: 1, display: "flex", alignItems: "center" }}>
@@ -315,6 +316,6 @@ export default function OnboardingPage() {
           </Card>
         </div>
       </main>
-    </div>
+    </PageTransition>
   );
 }

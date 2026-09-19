@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusMessage } from "@/components/ui/status-message";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PageTransition, GlowingCard } from "@/components/motion/motion-primitives";
 import { useAuth } from "@/hooks/use-auth";
 import { getStoredToken } from "@/lib/api";
 import {
@@ -135,7 +136,7 @@ export default function ReportsPage() {
   const isSenior = session?.profile ? session.profile.academic_year >= 3 : false;
 
   return (
-    <div className="page-shell">
+    <PageTransition className="page-shell">
       <AppNav />
 
       <main className="section-sm">
@@ -360,6 +361,6 @@ export default function ReportsPage() {
           </div>
         </div>
       </main>
-    </div>
+    </PageTransition>
   );
 }

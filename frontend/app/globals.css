@@ -1,29 +1,30 @@
 :root {
-  /* Brand Palette - Deep Emerald, Pine, Sand, Slate */
-  --canvas: #f5f7f5;
+  /* Brand Palette - Deep Emerald, Cyber Pine, Sand, Slate */
+  --canvas: #f6f8f6;
   --surface: #ffffff;
   --surface-raised: #ffffff;
-  --surface-subtle: #edf2ef;
+  --surface-subtle: #edf3f0;
+  --surface-glass: rgba(255, 255, 255, 0.82);
   --surface-dark: #0b1412;
   
-  --ink: #0f1917;
-  --ink-secondary: #475853;
-  --ink-tertiary: #7d8f8a;
+  --ink: #0d1a16;
+  --ink-secondary: #425550;
+  --ink-tertiary: #758983;
   --ink-inverse: #f4f8f6;
   
-  --line: #dbe3df;
-  --line-strong: #bac7c2;
-  --line-subtle: #e8eee9;
+  --line: #dae4e0;
+  --line-strong: #b5c4bf;
+  --line-subtle: #e7efe9;
 
   /* Primary Accent - Forest Emerald */
   --primary: #12634e;
   --primary-hover: #0c4d3d;
   --primary-subtle: #e7f4ef;
-  --primary-glow: rgba(18, 99, 78, 0.15);
+  --primary-glow: rgba(18, 99, 78, 0.18);
   
   /* Secondary Accents */
   --teal: #197278;
-  --teal-subtle: #e5f3f4;
+  --teal-subtle: #e4f3f4;
   --amber: #c07817;
   --amber-subtle: #fbf2e3;
   --danger: #b8332c;
@@ -40,11 +41,12 @@
   --radius-lg: 18px;
   --radius-full: 9999px;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(15, 25, 23, 0.04), 0 1px 3px rgba(15, 25, 23, 0.06);
-  --shadow-md: 0 4px 12px rgba(15, 25, 23, 0.06), 0 1px 3px rgba(15, 25, 23, 0.04);
-  --shadow-lg: 0 12px 32px rgba(15, 25, 23, 0.08), 0 2px 6px rgba(15, 25, 23, 0.04);
-  --shadow-float: 0 20px 48px -12px rgba(15, 25, 23, 0.14);
+  /* Premium Shadows & Depth */
+  --shadow-sm: 0 1px 2px rgba(13, 26, 22, 0.04), 0 1px 3px rgba(13, 26, 22, 0.06);
+  --shadow-md: 0 4px 14px rgba(13, 26, 22, 0.06), 0 1px 3px rgba(13, 26, 22, 0.04);
+  --shadow-lg: 0 12px 32px rgba(13, 26, 22, 0.08), 0 2px 6px rgba(13, 26, 22, 0.04);
+  --shadow-glow: 0 0 28px rgba(18, 99, 78, 0.14);
+  --shadow-float: 0 20px 48px -12px rgba(13, 26, 22, 0.14);
 
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -67,6 +69,7 @@ body {
   font-family: var(--font-sans);
   font-size: 15px;
   line-height: 1.55;
+  overflow-x: hidden;
 }
 
 a {
@@ -84,10 +87,11 @@ button, input, select, textarea {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .container {
-  width: min(1200px, calc(100% - 40px));
+  width: min(1220px, calc(100% - 40px));
   margin: 0 auto;
 }
 
@@ -97,11 +101,13 @@ button, input, select, textarea {
 }
 
 .section {
-  padding: 80px 0;
+  padding: 84px 0;
+  position: relative;
 }
 
 .section-sm {
-  padding: 48px 0;
+  padding: 44px 0;
+  position: relative;
 }
 
 /* Typography Hierarchy */
@@ -113,16 +119,16 @@ button, input, select, textarea {
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   margin-bottom: 8px;
 }
 
 .display-title {
   margin: 0;
-  font-size: clamp(2.8rem, 6vw, 4.8rem);
+  font-size: clamp(2.8rem, 5.8vw, 4.8rem);
   font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 1.04;
+  letter-spacing: -0.038em;
+  line-height: 1.05;
   color: var(--ink);
 }
 
@@ -142,9 +148,11 @@ button, input, select, textarea {
   max-width: 680px;
 }
 
-/* Card & Panels */
+/* Card & Panels with Glassmorphic Surfaces */
 .gradient-card {
-  background: var(--surface);
+  background: var(--surface-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
@@ -157,7 +165,9 @@ button, input, select, textarea {
 }
 
 .gradient-card-elevated {
-  background: var(--surface);
+  background: var(--surface-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--line-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
@@ -238,7 +248,7 @@ button, input, select, textarea {
   background: var(--primary-hover);
   border-color: var(--primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(18, 99, 78, 0.3);
+  box-shadow: 0 4px 12px rgba(18, 99, 78, 0.35);
 }
 
 .btn-secondary {
@@ -335,7 +345,7 @@ button, input, select, textarea {
 }
 
 .badge-year {
-  background: #0f1917;
+  background: #0d1a16;
   color: #ffffff;
   font-size: 0.72rem;
   letter-spacing: 0.04em;
@@ -400,9 +410,9 @@ button, input, select, textarea {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(245, 247, 245, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(246, 248, 246, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line);
   transition: all 180ms ease;
 }
@@ -426,16 +436,17 @@ button, input, select, textarea {
 }
 
 .brand-logo-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   background: linear-gradient(135deg, var(--primary) 0%, var(--teal) 100%);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 900;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+  box-shadow: 0 2px 8px rgba(18, 99, 78, 0.3);
 }
 
 .nav-links {
@@ -464,6 +475,16 @@ button, input, select, textarea {
   font-weight: 700;
 }
 
+/* Reduced Motion Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Responsive */
 @media (max-width: 960px) {
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -475,10 +496,9 @@ button, input, select, textarea {
   .section { padding: 48px 0; }
   .section-sm { padding: 32px 0; }
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
-  .container { width: min(100% - 24px, 1200px); }
+  .container { width: min(100% - 24px, 1220px); }
   .nav-links { display: none; }
   .mobile-menu-btn { display: flex !important; }
   .card-pad { padding: 16px; }
   .card-pad-lg { padding: 20px; }
 }
-

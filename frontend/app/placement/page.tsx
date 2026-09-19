@@ -57,6 +57,8 @@ import { MetricCard } from "@/components/ui/metric-card";
 import { StatusMessage } from "@/components/ui/status-message";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PlacementRadar } from "@/components/charts/placement-radar";
+import { PageTransition, GlowingCard, AnimatedCounter } from "@/components/motion/motion-primitives";
 import { useAuth } from "@/hooks/use-auth";
 import { downloadReportPdf } from "@/lib/api";
 import {
@@ -452,7 +454,7 @@ export default function PlacementPage() {
     : [];
 
   return (
-    <div className="page-shell">
+    <PageTransition className="page-shell">
       <AppNav />
 
       <main className="section-sm">
@@ -1130,51 +1132,68 @@ export default function PlacementPage() {
                 />
               ) : (
                 <>
-                  {/* Top Forecast KPI Highlights */}
+                  {/* Top Forecast KPI Highlights with Animated Counters */}
                   <div className="grid-3">
-                    <MetricCard
-                      title="Placement Probability"
-                      value={`${Math.round(prediction.placement_probability * 100)}%`}
-                      subValue={prediction.predicted_status}
-                      badge={<Badge variant="emerald">Supervised Model</Badge>}
-                      icon={<Briefcase size={22} />}
-                    />
+                    <GlowingCard className="card-pad">
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-tertiary)", textTransform: "uppercase" }}>
+                          Placement Probability
+                        </span>
+                        <Briefcase size={20} color="var(--primary)" />
+                      </div>
+                      <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--primary)" }}>
+                        <AnimatedCounter value={Math.round(prediction.placement_probability * 100)} suffix="%" duration={1} />
+                      </div>
+                      <div style={{ fontSize: "0.78rem", color: "var(--ink-secondary)", marginTop: 4 }}>
+                        {prediction.predicted_status}
+                      </div>
+                    </GlowingCard>
 
-                    <MetricCard
-                      title="Expected Package (LPA)"
-                      value={`${prediction.expected_lpa} LPA`}
-                      subValue="Prototype Ridge Regressor"
-                      icon={<TrendingUp size={22} />}
-                    />
+                    <GlowingCard className="card-pad">
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-tertiary)", textTransform: "uppercase" }}>
+                          Expected Package (LPA)
+                        </span>
+                        <TrendingUp size={20} color="var(--teal)" />
+                      </div>
+                      <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--ink)" }}>
+                        {prediction.expected_lpa} <span style={{ fontSize: "0.9rem", color: "var(--ink-tertiary)" }}>LPA</span>
+                      </div>
+                      <div style={{ fontSize: "0.78rem", color: "var(--ink-secondary)", marginTop: 4 }}>
+                        Prototype Ridge Regressor
+                      </div>
+                    </GlowingCard>
 
-                    <MetricCard
-                      title="Overall Readiness Score"
-                      value={`${prediction.readiness_score}%`}
-                      subValue="Across 6 Core Dimensions"
-                      icon={<Target size={22} />}
-                    />
+                    <GlowingCard className="card-pad">
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-tertiary)", textTransform: "uppercase" }}>
+                          Overall Readiness Score
+                        </span>
+                        <Target size={20} color="var(--amber)" />
+                      </div>
+                      <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--ink)" }}>
+                        <AnimatedCounter value={prediction.readiness_score} suffix="%" duration={1} />
+                      </div>
+                      <div style={{ fontSize: "0.78rem", color: "var(--ink-secondary)", marginTop: 4 }}>
+                        Across 6 Core Dimensions
+                      </div>
+                    </GlowingCard>
                   </div>
 
                   {/* Readiness Radar & Interview Stage Readiness */}
                   <div className="grid-2">
-                    {/* Recharts Radar Chart */}
+                    {/* Animated Placement Radar */}
                     <Card elevated>
                       <CardHeader>
                         <CardTitle>6-Dimension Placement Readiness Radar</CardTitle>
                         <CardDescription>Comprehensive competency radar across core hiring criteria</CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <div style={{ width: "100%", height: 320 }}>
-                          <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                              <PolarGrid stroke="var(--line)" />
-                              <PolarAngleAxis dataKey="subject" stroke="var(--ink)" tick={{ fontSize: 12, fontWeight: 600 }} />
-                              <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                              <Radar name="Readiness" dataKey="A" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.4} />
-                              <Tooltip />
-                            </RadarChart>
-                          </ResponsiveContainer>
-                        </div>
+                        <PlacementRadar
+                          dimensions={prediction.readiness_dimensions}
+                          readinessScore={prediction.readiness_score}
+                          height={320}
+                        />
                       </CardContent>
                     </Card>
 
@@ -1396,6 +1415,6 @@ export default function PlacementPage() {
           </form>
         </Modal>
       )}
-    </div>
+    </PageTransition>
   );
 }

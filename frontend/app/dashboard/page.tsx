@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import {
   AlertCircle,
   ArrowRight,
@@ -34,6 +36,17 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusMessage } from "@/components/ui/status-message";
+import { CGPARing } from "@/components/charts/cgpa-ring";
+import { RiskMatrix } from "@/components/charts/risk-matrix";
+import { PlacementRadar } from "@/components/charts/placement-radar";
+import {
+  fadeInUp,
+  staggerContainer,
+  staggerItem,
+  AnimatedCounter,
+  GlowingCard,
+  PageTransition,
+} from "@/components/motion/motion-primitives";
 import { useAuth } from "@/hooks/use-auth";
 import {
   getAcademicAnalysis,
@@ -51,13 +64,24 @@ import type {
   PlacementProfile,
 } from "@/types/api";
 
+// Dynamically load 3D Academic Health Orb
+const AcademicHealthOrb = dynamic(() => import("@/components/3d/academic-health-orb"), {
+  ssr: false,
+  loading: () => <div className="skeleton" style={{ width: 90, height: 90, borderRadius: "50%" }} />,
+});
+
 export default function DashboardPage() {
   const { session, loading: authLoading } = useAuth();
   const [features, setFeatures] = useState<FeatureAccess | null>(null);
   const [loadingData, setLoadingData] = useState(true);
 
   // Data states
-  const [latestRecord, setLatestRecord] = useState<{ id: string; semester: number; previous_cgpa: number; attendance_percentage: number } | null>(null);
+  const [latestRecord, setLatestRecord] = useState<{
+    id: string;
+    semester: number;
+    previous_cgpa: number;
+    attendance_percentage: number;
+  } | null>(null);
   const [academicAnalysis, setAcademicAnalysis] = useState<AcademicAnalysis | null>(null);
   const [academicPrediction, setAcademicPrediction] = useState<AcademicPredictionResult | null>(null);
   const [placementProfile, setPlacementProfile] = useState<PlacementProfile | null>(null);
@@ -179,16 +203,19 @@ export default function DashboardPage() {
   const isSenior = profile.academic_year >= 3;
 
   return (
-    <div className="page-shell">
+    <PageTransition className="page-shell">
       <AppNav />
 
       <main className="section-sm">
-        <div className="container" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-          {/* Welcome Banner */}
-          <div
+        <div className="container" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          {/* Welcome Banner with 3D Academic Health Orb */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             className="gradient-card card-pad"
             style={{
-              background: "linear-gradient(135deg, var(--surface) 0%, var(--surface-subtle) 100%)",
+              background: "linear-gradient(135deg, var(--surface) 0%, rgba(237, 243, 240, 0.6) 100%)",
               borderLeft: "5px solid var(--primary)",
               display: "flex",
               justifyContent: "space-between",
@@ -197,16 +224,27 @@ export default function DashboardPage() {
               gap: 16,
             }}
           >
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <h1 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 800 }}>
-                  Welcome back, {profile.full_name}
-                </h1>
-                <Badge variant="year">Year {profile.academic_year}</Badge>
+            <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+              {/* 3D Orb representing academic pulse */}
+              <div style={{ display: "none", sm: "block" } as any}>
+                <AcademicHealthOrb
+                  cgpa={latestRecord?.previous_cgpa || 8.0}
+                  riskLevel={academicPrediction?.risk_level || "Low Risk"}
+                  size={80}
+                />
               </div>
-              <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--ink-secondary)" }}>
-                {profile.college} &bull; {profile.department} &bull; Semester {profile.semester}
-              </p>
+
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <h1 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 800 }}>
+                    Welcome back, {profile.full_name}
+                  </h1>
+                  <Badge variant="year">Year {profile.academic_year}</Badge>
+                </div>
+                <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--ink-secondary)" }}>
+                  {profile.college} &bull; {profile.department} &bull; Semester {profile.semester}
+                </p>
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -222,58 +260,114 @@ export default function DashboardPage() {
                 <FileText size={15} /> Reports
               </Link>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Core Metrics Grid */}
-          <div className="grid-4">
-            <MetricCard
-              title="Prior CGPA"
-              value={latestRecord?.previous_cgpa ? latestRecord.previous_cgpa.toFixed(2) : "—"}
-              subValue="/ 10"
-              icon={<GraduationCap size={20} />}
-            />
+          {/* Core Animated Metrics Grid */}
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={staggerContainer}
+            className="grid-4"
+          >
+            <motion.div variants={staggerItem}>
+              <GlowingCard className="card-pad">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-tertiary)", textTransform: "uppercase" }}>
+                    Prior CGPA
+                  </span>
+                  <GraduationCap size={18} color="var(--primary)" />
+                </div>
+                <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--ink)" }}>
+                  {latestRecord?.previous_cgpa ? (
+                    <AnimatedCounter value={latestRecord.previous_cgpa} decimals={2} duration={1} />
+                  ) : (
+                    "—"
+                  )}
+                  <span style={{ fontSize: "0.85rem", color: "var(--ink-tertiary)", fontWeight: 500, marginLeft: 4 }}>/ 10</span>
+                </div>
+                <div style={{ fontSize: "0.78rem", color: "var(--ink-secondary)", marginTop: 4 }}>
+                  Institutional Record
+                </div>
+              </GlowingCard>
+            </motion.div>
 
-            <MetricCard
-              title="Predicted CGPA"
-              value={academicPrediction?.predicted_cgpa ? academicPrediction.predicted_cgpa.toFixed(2) : "—"}
-              subValue="ML Forecast"
-              trend={academicAnalysis?.overall_trend === "improving" ? "improving" : academicAnalysis?.overall_trend === "declining" ? "declining" : "stable"}
-              trendLabel={academicAnalysis?.overall_trend ? `${academicAnalysis.overall_trend.toUpperCase()}` : undefined}
-              icon={<Sparkles size={20} />}
-            />
+            <motion.div variants={staggerItem}>
+              <GlowingCard className="card-pad">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-tertiary)", textTransform: "uppercase" }}>
+                    Predicted CGPA
+                  </span>
+                  <Sparkles size={18} color="var(--teal)" />
+                </div>
+                <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--primary)" }}>
+                  {academicPrediction?.predicted_cgpa ? (
+                    <AnimatedCounter value={academicPrediction.predicted_cgpa} decimals={2} duration={1.2} />
+                  ) : (
+                    "—"
+                  )}
+                  <span style={{ fontSize: "0.85rem", color: "var(--ink-tertiary)", fontWeight: 500, marginLeft: 4 }}>/ 10</span>
+                </div>
+                <div style={{ fontSize: "0.78rem", color: "var(--teal)", fontWeight: 600, marginTop: 4 }}>
+                  ML Ridge Regression
+                </div>
+              </GlowingCard>
+            </motion.div>
 
-            <MetricCard
-              title="Academic Risk"
-              value={academicPrediction?.risk_level ? academicPrediction.risk_level.replace(" Risk", "") : "Low"}
-              badge={<RiskBadge risk={academicPrediction?.risk_level || "Low Risk"} />}
-            />
+            <motion.div variants={staggerItem}>
+              <GlowingCard className="card-pad">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-tertiary)", textTransform: "uppercase" }}>
+                    Academic Risk
+                  </span>
+                  <RiskBadge risk={academicPrediction?.risk_level || "Low Risk"} />
+                </div>
+                <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--ink)" }}>
+                  {academicPrediction?.risk_level ? academicPrediction.risk_level.replace(" Risk", "") : "Low"}
+                </div>
+                <div style={{ fontSize: "0.78rem", color: "var(--ink-secondary)", marginTop: 4 }}>
+                  Stability Classification
+                </div>
+              </GlowingCard>
+            </motion.div>
 
-            <MetricCard
-              title="Attendance Rate"
-              value={latestRecord?.attendance_percentage ? `${latestRecord.attendance_percentage}%` : "—"}
-              subValue={latestRecord && latestRecord.attendance_percentage < 75 ? "Below 75% limit" : "Safe"}
-              badge={
-                latestRecord && latestRecord.attendance_percentage < 75 ? (
-                  <Badge variant="danger">Attention</Badge>
-                ) : (
-                  <Badge variant="emerald">Compliant</Badge>
-                )
-              }
-            />
-          </div>
+            <motion.div variants={staggerItem}>
+              <GlowingCard className="card-pad">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-tertiary)", textTransform: "uppercase" }}>
+                    Attendance Rate
+                  </span>
+                  {latestRecord && latestRecord.attendance_percentage < 75 ? (
+                    <Badge variant="danger">Attention</Badge>
+                  ) : (
+                    <Badge variant="emerald">Compliant</Badge>
+                  )}
+                </div>
+                <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--ink)" }}>
+                  {latestRecord?.attendance_percentage ? (
+                    <AnimatedCounter value={latestRecord.attendance_percentage} decimals={1} suffix="%" duration={1} />
+                  ) : (
+                    "—"
+                  )}
+                </div>
+                <div style={{ fontSize: "0.78rem", color: latestRecord && latestRecord.attendance_percentage < 75 ? "var(--danger)" : "var(--ink-secondary)", marginTop: 4 }}>
+                  {latestRecord && latestRecord.attendance_percentage < 75 ? "Below 75% threshold" : "Safe threshold"}
+                </div>
+              </GlowingCard>
+            </motion.div>
+          </motion.div>
 
-          {/* Main Dashboard Layout: Academic Summary + Action Hub */}
+          {/* Main Dashboard Layout: Diagnostic Visualizer + Action Hub */}
           <div className="grid-2-1">
-            {/* Left Column: Academic Diagnostic Summary */}
+            {/* Left Column: Academic & Career Diagnostic Summaries */}
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              {/* Academic Overview Card */}
-              <Card>
+              {/* Academic Overview with Radial Ring & Risk Matrix */}
+              <Card elevated>
                 <CardHeader>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
-                      <CardTitle>Academic Diagnostic & IA Summary</CardTitle>
+                      <CardTitle>Academic Diagnostic &amp; IA Progression</CardTitle>
                       <CardDescription>
-                        Internal assessment trajectories and weak subject detection
+                        Internal assessment trajectories, regression trends, and weak-subject diagnostics
                       </CardDescription>
                     </div>
                     <Link href="/academic" className="btn btn-outline btn-sm">
@@ -290,13 +384,29 @@ export default function DashboardPage() {
                       description="Enter your subject details and internal assessment (IA) marks to generate regression trends and CGPA forecasts."
                       action={
                         <Link href="/academic" className="btn btn-primary btn-sm">
-                          Add Semester Subjects & IA Marks
+                          Add Semester Subjects &amp; IA Marks
                         </Link>
                       }
                     />
                   ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-                      {/* Weakest Subject Callout */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                      {/* CGPA Ring & Risk Matrix Visualization Row */}
+                      <div className="grid-2" style={{ alignItems: "center", gap: 16 }}>
+                        <div style={{ display: "flex", justifyContent: "center", padding: "10px 0" }}>
+                          <CGPARing
+                            cgpa={latestRecord.previous_cgpa}
+                            predictedCgpa={academicPrediction?.predicted_cgpa}
+                            size={170}
+                          />
+                        </div>
+                        <RiskMatrix
+                          riskLevel={academicPrediction?.risk_level || "Low Risk"}
+                          contributingFactors={academicPrediction?.contributing_factors}
+                          attendanceRate={latestRecord.attendance_percentage}
+                        />
+                      </div>
+
+                      {/* Weakest Subject Alert */}
                       {academicAnalysis?.weakest_subject && (
                         <div
                           style={{
@@ -313,7 +423,7 @@ export default function DashboardPage() {
                           <div style={{ flex: 1 }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                               <span style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--danger)" }}>
-                                Highest Priority: {academicAnalysis.weakest_subject}
+                                Diagnostic Priority: {academicAnalysis.weakest_subject}
                               </span>
                               <PriorityBadge priority="High" />
                             </div>
@@ -372,13 +482,13 @@ export default function DashboardPage() {
 
               {/* Career Intelligence Summary (Year 3 & 4 only) */}
               {isSenior && (
-                <Card>
+                <Card elevated>
                   <CardHeader>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div>
-                        <CardTitle>Career & Placement Intelligence</CardTitle>
+                        <CardTitle>Career &amp; Placement Readiness</CardTitle>
                         <CardDescription>
-                          Placement probability, readiness dimensions, and target company roadmaps
+                          6-Dimension radar assessment, probability forecast, and company preparation
                         </CardDescription>
                       </div>
                       <Link href="/placement" className="btn btn-outline btn-sm">
@@ -400,14 +510,18 @@ export default function DashboardPage() {
                         }
                       />
                     ) : (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                         <div className="grid-2">
                           <div style={{ padding: 14, background: "var(--primary-subtle)", borderRadius: "var(--radius-sm)", border: "1px solid rgba(18, 99, 78, 0.2)" }}>
                             <div style={{ fontSize: "0.75rem", color: "var(--primary)", fontWeight: 700, textTransform: "uppercase" }}>
                               Placement Probability
                             </div>
                             <div style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--primary)", marginTop: 2 }}>
-                              {placementPrediction ? `${Math.round(placementPrediction.placement_probability * 100)}%` : "—"}
+                              {placementPrediction ? (
+                                <AnimatedCounter value={Math.round(placementPrediction.placement_probability * 100)} suffix="%" duration={1} />
+                              ) : (
+                                "—"
+                              )}
                             </div>
                             <div style={{ fontSize: "0.78rem", color: "var(--ink-secondary)", marginTop: 2 }}>
                               {placementPrediction?.predicted_status || "Evaluating readiness metrics"}
@@ -426,6 +540,15 @@ export default function DashboardPage() {
                             </div>
                           </div>
                         </div>
+
+                        {/* Radar Chart */}
+                        {placementPrediction?.readiness_dimensions && (
+                          <PlacementRadar
+                            dimensions={placementPrediction.readiness_dimensions}
+                            readinessScore={placementPrediction.readiness_score}
+                            height={280}
+                          />
+                        )}
 
                         {/* Assessment Scores Bar */}
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -473,7 +596,7 @@ export default function DashboardPage() {
             {/* Right Column: Quick Action Hub & Exam Timetable Launcher */}
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               {/* Quick Action Hub */}
-              <Card>
+              <Card elevated>
                 <CardHeader>
                   <CardTitle>Next Actions</CardTitle>
                 </CardHeader>
@@ -545,12 +668,12 @@ export default function DashboardPage() {
                 <div style={{ fontWeight: 700, color: "var(--ink)", marginBottom: 4 }}>
                   Prototype ML Model Note
                 </div>
-                Forecasts are generated by local scikit-learn Ridge & Logistic Regression artifacts trained on synthetic prototype distributions for development and integration.
+                Forecasts are generated by local scikit-learn Ridge &amp; Logistic Regression artifacts trained on synthetic prototype distributions for development and integration.
               </div>
             </div>
           </div>
         </div>
       </main>
-    </div>
+    </PageTransition>
   );
 }

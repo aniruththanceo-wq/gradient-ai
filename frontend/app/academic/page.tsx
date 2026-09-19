@@ -44,6 +44,10 @@ import { MetricCard } from "@/components/ui/metric-card";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { IATrendChart } from "@/components/charts/ia-trend-chart";
+import { CGPARing } from "@/components/charts/cgpa-ring";
+import { RiskMatrix } from "@/components/charts/risk-matrix";
+import { PageTransition, GlowingCard, AnimatedCounter } from "@/components/motion/motion-primitives";
 import { useAuth } from "@/hooks/use-auth";
 import { downloadReportPdf } from "@/lib/api";
 import {
@@ -323,7 +327,7 @@ export default function AcademicPage() {
   });
 
   return (
-    <div className="page-shell">
+    <PageTransition className="page-shell">
       <AppNav />
 
       <main className="section-sm">
@@ -671,29 +675,72 @@ export default function AcademicPage() {
                 />
               ) : (
                 <>
-                  {/* Top Forecast KPI Highlights */}
+                  {/* Top Forecast KPI Highlights with Animated Counters */}
                   <div className="grid-3">
-                    <MetricCard
-                      title="Predicted CGPA"
-                      value={prediction ? prediction.predicted_cgpa.toFixed(2) : "—"}
-                      subValue="/ 10.0"
-                      trend={analysis.overall_trend === "improving" ? "improving" : analysis.overall_trend === "declining" ? "declining" : "stable"}
-                      trendLabel={`Overall Trajectory: ${analysis.overall_trend.toUpperCase()}`}
-                      icon={<Sparkles size={22} />}
-                    />
+                    <GlowingCard className="card-pad">
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-tertiary)", textTransform: "uppercase" }}>
+                          Predicted CGPA
+                        </span>
+                        <Sparkles size={20} color="var(--primary)" />
+                      </div>
+                      <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--primary)" }}>
+                        {prediction ? (
+                          <AnimatedCounter value={prediction.predicted_cgpa} decimals={2} duration={1} />
+                        ) : (
+                          "—"
+                        )}
+                        <span style={{ fontSize: "0.85rem", color: "var(--ink-tertiary)", fontWeight: 500, marginLeft: 4 }}>/ 10.0</span>
+                      </div>
+                      <div style={{ fontSize: "0.78rem", color: "var(--teal)", fontWeight: 600, marginTop: 4 }}>
+                        Overall Trajectory: {analysis.overall_trend.toUpperCase()}
+                      </div>
+                    </GlowingCard>
 
-                    <MetricCard
-                      title="Academic Risk Level"
-                      value={prediction?.risk_level ? prediction.risk_level.replace(" Risk", "") : "Low"}
-                      badge={<RiskBadge risk={prediction?.risk_level || "Low Risk"} />}
-                      icon={<AlertCircle size={22} />}
-                    />
+                    <GlowingCard className="card-pad">
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-tertiary)", textTransform: "uppercase" }}>
+                          Academic Risk Level
+                        </span>
+                        <RiskBadge risk={prediction?.risk_level || "Low Risk"} />
+                      </div>
+                      <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--ink)" }}>
+                        {prediction?.risk_level ? prediction.risk_level.replace(" Risk", "") : "Low"}
+                      </div>
+                      <div style={{ fontSize: "0.78rem", color: "var(--ink-secondary)", marginTop: 4 }}>
+                        Stability Classification
+                      </div>
+                    </GlowingCard>
 
-                    <MetricCard
-                      title="Average IA Performance"
-                      value={`${analysis.average_ia_percentage}%`}
-                      subValue={analysis.strongest_subject ? `Strongest: ${analysis.strongest_subject}` : undefined}
-                      icon={<BarChart3 size={22} />}
+                    <GlowingCard className="card-pad">
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-tertiary)", textTransform: "uppercase" }}>
+                          Average IA Mark
+                        </span>
+                        <BarChart3 size={20} color="var(--teal)" />
+                      </div>
+                      <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--ink)" }}>
+                        <AnimatedCounter value={analysis.average_ia_percentage} decimals={1} suffix="%" duration={1} />
+                      </div>
+                      <div style={{ fontSize: "0.78rem", color: "var(--ink-secondary)", marginTop: 4 }}>
+                        {analysis.strongest_subject ? `Strongest: ${analysis.strongest_subject}` : "Multi-Exam Mean"}
+                      </div>
+                    </GlowingCard>
+                  </div>
+
+                  {/* Radial CGPA & Risk Matrix Diagnosis */}
+                  <div className="grid-2" style={{ alignItems: "center", gap: 20 }}>
+                    <div style={{ display: "flex", justifyContent: "center", padding: "12px 0" }}>
+                      <CGPARing
+                        cgpa={prevCGPA}
+                        predictedCgpa={prediction?.predicted_cgpa}
+                        size={180}
+                      />
+                    </div>
+                    <RiskMatrix
+                      riskLevel={prediction?.risk_level || "Low Risk"}
+                      contributingFactors={prediction?.contributing_factors}
+                      attendanceRate={attendance}
                     />
                   </div>
 
@@ -704,43 +751,15 @@ export default function AcademicPage() {
                         <div>
                           <CardTitle>Subject IA Progression Curves</CardTitle>
                           <CardDescription>
-                            Linear trajectory and fluctuation tracking across all exams
+                            Linear regression trajectory and fluctuation tracking across all internal assessments
                           </CardDescription>
                         </div>
-                        <Badge variant="emerald">Recharts Active</Badge>
+                        <Badge variant="emerald">Live Curves</Badge>
                       </div>
                     </CardHeader>
 
                     <CardContent>
-                      <div style={{ width: "100%", height: 320, minHeight: 320 }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={multiSubjectChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--line-subtle)" />
-                            <XAxis dataKey="name" stroke="var(--ink-secondary)" />
-                            <YAxis domain={[0, 100]} stroke="var(--ink-secondary)" tickFormatter={(val) => `${val}%`} />
-                            <Tooltip
-                              contentStyle={{
-                                background: "var(--surface)",
-                                border: "1px solid var(--line)",
-                                borderRadius: "var(--radius-sm)",
-                                boxShadow: "var(--shadow-md)",
-                              }}
-                              formatter={(value: any) => [`${value}%`]}
-                            />
-                            <Legend />
-                            {analysis.subjects.map((sub, i) => (
-                              <Line
-                                key={sub.subject}
-                                type="monotone"
-                                dataKey={sub.subject}
-                                stroke={chartColors[i % chartColors.length]}
-                                strokeWidth={2.5}
-                                activeDot={{ r: 6 }}
-                              />
-                            ))}
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
+                      <IATrendChart subjects={analysis.subjects} height={340} />
                     </CardContent>
                   </Card>
 
@@ -1022,6 +1041,6 @@ export default function AcademicPage() {
           )}
         </div>
       </main>
-    </div>
+    </PageTransition>
   );
 }
