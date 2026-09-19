@@ -6,16 +6,20 @@ ENV PORT=8000
 
 WORKDIR /app
 
-# Install build tools and python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies
+COPY backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Copy Alembic migrations and application source
-COPY alembic.ini .
-COPY migrations ./migrations
-COPY app ./app
+# Copy backend application and migrations
+COPY backend/alembic.ini ./alembic.ini
+COPY backend/migrations ./migrations
+COPY backend/app ./app
 
-# Create output directories for reports
+# Copy trained ML model artifacts
+COPY ml/models ./ml/models
+
+# Create output directory for generated reports
 RUN mkdir -p /app/reports/generated
 
 EXPOSE 8000
