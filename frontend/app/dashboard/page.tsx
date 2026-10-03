@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
+  Activity,
   AlertCircle,
   ArrowRight,
   BarChart3,
@@ -13,6 +14,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Code2,
+  Cpu,
   FileText,
   GraduationCap,
   Layers,
@@ -132,11 +134,12 @@ export default function DashboardPage() {
     return (
       <div className="page-shell">
         <AppNav />
-        <main className="section">
+        <main className="section-sm">
           <div className="container" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <Skeleton height={40} width={280} />
+            <Skeleton height={44} width={280} />
             <Skeleton height={140} />
-            <div className="grid-3">
+            <div className="grid-4">
+              <Skeleton height={130} />
               <Skeleton height={130} />
               <Skeleton height={130} />
               <Skeleton height={130} />
@@ -186,7 +189,7 @@ export default function DashboardPage() {
                 <div className="eyebrow"><Sparkles size={14} /> Profile Required</div>
                 <h1 className="section-title">Welcome to Gradient AI</h1>
                 <p className="lead-text" style={{ margin: "0 auto 24px" }}>
-                  Complete your short onboarding setup to unlock your personalized academic trajectory and exam timetables.
+                  Complete your quick onboarding setup to unlock your personalized academic trajectory and exam timetables.
                 </p>
                 <Link href="/onboarding" className="btn btn-primary btn-lg">
                   Complete Onboarding Setup <ArrowRight size={18} />
@@ -208,14 +211,14 @@ export default function DashboardPage() {
 
       <main className="section-sm">
         <div className="container" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          {/* Welcome Banner with 3D Academic Health Orb */}
+          {/* Welcome Command Bar with 3D Academic Health Orb */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             className="gradient-card card-pad"
             style={{
-              background: "linear-gradient(135deg, var(--surface) 0%, rgba(237, 243, 240, 0.6) 100%)",
+              background: "linear-gradient(135deg, var(--surface) 0%, rgba(237, 243, 240, 0.7) 100%)",
               borderLeft: "5px solid var(--primary)",
               display: "flex",
               justifyContent: "space-between",
@@ -226,17 +229,17 @@ export default function DashboardPage() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
               {/* 3D Orb representing academic pulse */}
-              <div style={{ display: "none", sm: "block" } as any}>
+              <div>
                 <AcademicHealthOrb
                   cgpa={latestRecord?.previous_cgpa || 8.0}
                   riskLevel={academicPrediction?.risk_level || "Low Risk"}
-                  size={80}
+                  size={84}
                 />
               </div>
 
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <h1 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 800 }}>
+                  <h1 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 800, letterSpacing: "-0.02em" }}>
                     Welcome back, {profile.full_name}
                   </h1>
                   <Badge variant="year">Year {profile.academic_year}</Badge>
@@ -286,7 +289,7 @@ export default function DashboardPage() {
                   <span style={{ fontSize: "0.85rem", color: "var(--ink-tertiary)", fontWeight: 500, marginLeft: 4 }}>/ 10</span>
                 </div>
                 <div style={{ fontSize: "0.78rem", color: "var(--ink-secondary)", marginTop: 4 }}>
-                  Institutional Record
+                  Institutional Baseline
                 </div>
               </GlowingCard>
             </motion.div>
@@ -297,7 +300,7 @@ export default function DashboardPage() {
                   <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-tertiary)", textTransform: "uppercase" }}>
                     Predicted CGPA
                   </span>
-                  <Sparkles size={18} color="var(--teal)" />
+                  <Badge variant="predicted">ML Model</Badge>
                 </div>
                 <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--primary)" }}>
                   {academicPrediction?.predicted_cgpa ? (
@@ -308,7 +311,7 @@ export default function DashboardPage() {
                   <span style={{ fontSize: "0.85rem", color: "var(--ink-tertiary)", fontWeight: 500, marginLeft: 4 }}>/ 10</span>
                 </div>
                 <div style={{ fontSize: "0.78rem", color: "var(--teal)", fontWeight: 600, marginTop: 4 }}>
-                  ML Ridge Regression
+                  Ridge Regression Forecast
                 </div>
               </GlowingCard>
             </motion.div>
@@ -350,7 +353,7 @@ export default function DashboardPage() {
                   )}
                 </div>
                 <div style={{ fontSize: "0.78rem", color: latestRecord && latestRecord.attendance_percentage < 75 ? "var(--danger)" : "var(--ink-secondary)", marginTop: 4 }}>
-                  {latestRecord && latestRecord.attendance_percentage < 75 ? "Below 75% threshold" : "Safe threshold"}
+                  {latestRecord && latestRecord.attendance_percentage < 75 ? "Below 75% institutional threshold" : "Safe compliance threshold"}
                 </div>
               </GlowingCard>
             </motion.div>
@@ -363,7 +366,7 @@ export default function DashboardPage() {
               {/* Academic Overview with Radial Ring & Risk Matrix */}
               <Card elevated>
                 <CardHeader>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
                     <div>
                       <CardTitle>Academic Diagnostic &amp; IA Progression</CardTitle>
                       <CardDescription>
@@ -406,7 +409,7 @@ export default function DashboardPage() {
                         />
                       </div>
 
-                      {/* Weakest Subject Alert */}
+                      {/* Weakest Subject Diagnostic Alert */}
                       {academicAnalysis?.weakest_subject && (
                         <div
                           style={{
@@ -484,7 +487,7 @@ export default function DashboardPage() {
               {isSenior && (
                 <Card elevated>
                   <CardHeader>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
                       <div>
                         <CardTitle>Career &amp; Placement Readiness</CardTitle>
                         <CardDescription>
@@ -530,7 +533,7 @@ export default function DashboardPage() {
 
                           <div style={{ padding: 14, background: "var(--surface-subtle)", borderRadius: "var(--radius-sm)", border: "1px solid var(--line)" }}>
                             <div style={{ fontSize: "0.75rem", color: "var(--ink-tertiary)", fontWeight: 700, textTransform: "uppercase" }}>
-                              Expected Package
+                              Expected Package Range
                             </div>
                             <div style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--ink)", marginTop: 2 }}>
                               {placementPrediction?.expected_lpa ? `${placementPrediction.expected_lpa} LPA` : "—"}
@@ -608,7 +611,7 @@ export default function DashboardPage() {
                   >
                     <BarChart3 size={18} color="var(--primary)" />
                     <div style={{ textAlign: "left" }}>
-                      <div style={{ fontWeight: 600, fontSize: "0.88rem" }}>Update IA Scores</div>
+                      <div style={{ fontWeight: 600, fontSize: "0.88rem" }}>Update IA Marks</div>
                       <div style={{ fontSize: "0.75rem", color: "var(--ink-tertiary)" }}>Recalculate regression slope</div>
                     </div>
                   </Link>
@@ -646,8 +649,8 @@ export default function DashboardPage() {
                   >
                     <FileText size={18} color="var(--indigo)" />
                     <div style={{ textAlign: "left" }}>
-                      <div style={{ fontWeight: 600, fontSize: "0.88rem" }}>Download PDF Report</div>
-                      <div style={{ fontSize: "0.75rem", color: "var(--ink-tertiary)" }}>Instant server-generated report</div>
+                      <div style={{ fontWeight: 600, fontSize: "0.88rem" }}>Download Intelligence Dossier</div>
+                      <div style={{ fontSize: "0.75rem", color: "var(--ink-tertiary)" }}>Instant server-compiled PDF</div>
                     </div>
                   </Link>
                 </CardContent>

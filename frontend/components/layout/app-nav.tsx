@@ -14,6 +14,7 @@ import {
   Menu,
   X,
   Sparkles,
+  Activity,
 } from "lucide-react";
 import { devLogin, getFeatureAccess, logout } from "@/services/gradient-api";
 import { setStoredToken } from "@/lib/api";
@@ -27,8 +28,9 @@ export function AppNav() {
   const [features, setFeatures] = useState<FeatureAccess | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [personaOpen, setPersonaOpen] = useState(false);
-  const demoEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO === "true";
+  const demoEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO === "true" || process.env.NODE_ENV === "development";
   const personaRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   // Close persona dropdown on outside click
   useEffect(() => {
@@ -42,6 +44,18 @@ export function AppNav() {
     }
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, [personaOpen]);
+
+  // Handle escape key to close menus
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        setPersonaOpen(false);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     if (session?.profile) {
@@ -88,26 +102,26 @@ export function AppNav() {
   const isPlacement = features?.placement_intelligence ?? (session?.profile ? session.profile.academic_year >= 3 : false);
 
   const links = [
-    { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={17} /> },
-    { href: "/academic", label: "Academic", icon: <GraduationCap size={17} /> },
+    { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={16} /> },
+    { href: "/academic", label: "Academic", icon: <GraduationCap size={16} /> },
     ...(isPlacement
-      ? [{ href: "/placement", label: "Placement", icon: <Briefcase size={17} /> }]
+      ? [{ href: "/placement", label: "Placement", icon: <Briefcase size={16} /> }]
       : []),
-    { href: "/reports", label: "Reports", icon: <FileText size={17} /> },
+    { href: "/reports", label: "Reports", icon: <FileText size={16} /> },
   ];
 
   return (
-    <header className="app-header">
+    <header className="app-header" role="banner">
       <div className="container app-header-inner">
         {/* Brand */}
-        <Link className="brand-link" href={session?.profile ? "/dashboard" : "/"}>
+        <Link className="brand-link" href={session?.profile ? "/dashboard" : "/"} aria-label="Gradient AI Home">
           <div className="brand-logo-icon">G</div>
           <span>Gradient AI</span>
         </Link>
 
         {/* Desktop Navigation */}
         {session?.profile && (
-          <nav className="nav-links">
+          <nav className="nav-links" aria-label="Main Navigation">
             {links.map((link) => {
               const active = pathname.startsWith(link.href);
               return (
@@ -116,6 +130,7 @@ export function AppNav() {
                   href={link.href}
                   className={`nav-link ${active ? "active" : ""}`}
                   style={{ display: "inline-flex", alignItems: "center", gap: 7 }}
+                  aria-current={active ? "page" : undefined}
                 >
                   {link.icon}
                   {link.label}
@@ -127,90 +142,110 @@ export function AppNav() {
 
         {/* Right Action / Profile Menu */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {/* Development-only persona switcher. Production never calls dev-login. */}
-          {demoEnabled && <div style={{ position: "relative" }} ref={personaRef}>
-            <button
-              onClick={() => setPersonaOpen(!personaOpen)}
-              className="btn btn-secondary btn-sm"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8rem" }}
-              title="Switch persona for testing Year 1 vs Year 4 flows"
+          {/* Status Indicator */}
+          {session?.profile && (
+            <div
+              className="badge badge-predicted hide-mobile"
+              style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 8px" }}
+              title="System status: Connected to trained inference pipelines"
             >
-              <Sparkles size={13} color="var(--primary)" />
-              <span>
-                {session?.profile
-                  ? `Year ${session.profile.academic_year}`
-                  : session
-                  ? "New Student"
-                  : "Try Demo"}
-              </span>
-              <ChevronDown size={13} />
-            </button>
+              <Activity size={12} color="var(--primary)" />
+              <span>Year {session.profile.academic_year} Active</span>
+            </div>
+          )}
 
-            {personaOpen && (
-              <div
-                className="gradient-card-elevated"
-                style={{
-                  position: "absolute",
-                  right: 0,
-                  top: "calc(100% + 6px)",
-                  width: 240,
-                  padding: "6px",
-                  zIndex: 100,
-                  background: "var(--surface)",
-                }}
+          {/* Persona Switcher (only in development or when demo enabled) */}
+          {demoEnabled && (
+            <div style={{ position: "relative" }} ref={personaRef}>
+              <button
+                type="button"
+                onClick={() => setPersonaOpen(!personaOpen)}
+                className="btn btn-secondary btn-sm"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.8rem" }}
+                title="Switch persona for testing Year 1 vs Year 4 flows"
+                aria-expanded={personaOpen}
+                aria-haspopup="true"
               >
+                <Sparkles size={13} color="var(--primary)" />
+                <span>
+                  {session?.profile
+                    ? `Year ${session.profile.academic_year}`
+                    : session
+                    ? "New Student"
+                    : "Try Demo"}
+                </span>
+                <ChevronDown size={13} />
+              </button>
+
+              {personaOpen && (
                 <div
+                  className="gradient-card-elevated"
                   style={{
-                    padding: "6px 10px 8px",
-                    fontSize: "0.72rem",
-                    fontWeight: 700,
-                    color: "var(--ink-tertiary)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    borderBottom: "1px solid var(--line)",
-                    marginBottom: 4,
+                    position: "absolute",
+                    right: 0,
+                    top: "calc(100% + 6px)",
+                    width: 240,
+                    padding: "6px",
+                    zIndex: 100,
+                    background: "var(--surface)",
                   }}
+                  role="menu"
                 >
-                  Switch Test Persona
-                </div>
-                {[
-                  {
-                    persona: "year_1_student",
-                    name: "Alex Chen — Year 1",
-                    desc: "Academic Intelligence only",
-                  },
-                  {
-                    persona: "year_4_student",
-                    name: "Maya Patel — Year 4",
-                    desc: "Academic + Career Suite",
-                  },
-                  {
-                    persona: "new_student",
-                    name: "New Student",
-                    desc: "Triggers onboarding flow",
-                  },
-                ].map(({ persona, name, desc }) => (
-                  <button
-                    key={persona}
-                    type="button"
-                    onClick={() => switchPersona(persona)}
-                    className="btn btn-ghost btn-sm"
+                  <div
                     style={{
-                      width: "100%",
-                      justifyContent: "flex-start",
-                      textAlign: "left",
-                      padding: "7px 10px",
+                      padding: "6px 10px 8px",
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      color: "var(--ink-tertiary)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      borderBottom: "1px solid var(--line)",
+                      marginBottom: 4,
                     }}
                   >
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--ink)" }}>{name}</div>
-                      <div style={{ fontSize: "0.72rem", color: "var(--ink-tertiary)" }}>{desc}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>}
+                    Switch Demo Persona
+                  </div>
+                  {[
+                    {
+                      persona: "year_1_student",
+                      name: "Alex Chen — Year 1",
+                      desc: "Academic Intelligence focus",
+                    },
+                    {
+                      persona: "year_4_student",
+                      name: "Maya Patel — Year 4",
+                      desc: "Academic + Career Suite",
+                    },
+                    {
+                      persona: "new_student",
+                      name: "New Student",
+                      desc: "Triggers onboarding flow",
+                    },
+                  ].map(({ persona, name, desc }) => (
+                    <button
+                      key={persona}
+                      type="button"
+                      onClick={() => switchPersona(persona)}
+                      className="btn btn-ghost btn-sm"
+                      style={{
+                        width: "100%",
+                        justifyContent: "flex-start",
+                        textAlign: "left",
+                        padding: "8px 10px",
+                        minHeight: 40,
+                      }}
+                      role="menuitem"
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--ink)" }}>{name}</div>
+                        <div style={{ fontSize: "0.72rem", color: "var(--ink-tertiary)" }}>{desc}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* User Profile / Logout */}
           {session ? (
@@ -236,6 +271,7 @@ export function AppNav() {
                 className="btn btn-ghost btn-sm"
                 title="Sign out"
                 style={{ padding: "6px 8px" }}
+                aria-label="Sign out"
               >
                 <LogOut size={16} />
               </button>
@@ -250,8 +286,9 @@ export function AppNav() {
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className="btn btn-ghost btn-sm mobile-menu-btn"
-            style={{ display: "none" }}
+            style={{ display: "none", minWidth: 44, minHeight: 44 }}
             aria-label="Toggle navigation menu"
+            aria-expanded={menuOpen}
           >
             {menuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -261,14 +298,19 @@ export function AppNav() {
       {/* Mobile Menu Drawer */}
       {menuOpen && session?.profile && (
         <div
+          ref={mobileMenuRef}
           style={{
-            padding: "12px 16px 16px",
+            padding: "14px 16px 20px",
             borderTop: "1px solid var(--line)",
             background: "var(--surface)",
             display: "flex",
             flexDirection: "column",
-            gap: 4,
+            gap: 6,
+            boxShadow: "var(--shadow-md)",
           }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Mobile Navigation Menu"
         >
           {links.map((link) => (
             <Link
@@ -276,17 +318,30 @@ export function AppNav() {
               href={link.href}
               onClick={() => setMenuOpen(false)}
               className={`nav-link ${pathname.startsWith(link.href) ? "active" : ""}`}
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px" }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "12px 14px",
+                fontSize: "0.95rem",
+                borderRadius: "var(--radius-sm)",
+              }}
             >
               {link.icon}
               {link.label}
             </Link>
           ))}
-          <div style={{ borderTop: "1px solid var(--line)", marginTop: 8, paddingTop: 8 }}>
+          <div style={{ borderTop: "1px solid var(--line)", marginTop: 8, paddingTop: 10 }}>
             <button
               onClick={handleLogout}
               className="btn btn-ghost btn-sm"
-              style={{ width: "100%", justifyContent: "flex-start", gap: 10, padding: "10px 12px" }}
+              style={{
+                width: "100%",
+                justifyContent: "flex-start",
+                gap: 12,
+                padding: "12px 14px",
+                fontSize: "0.92rem",
+              }}
             >
               <LogOut size={16} /> Sign Out
             </button>

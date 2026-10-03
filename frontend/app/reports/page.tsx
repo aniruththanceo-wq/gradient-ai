@@ -1,16 +1,28 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import {
+  Activity,
+  Award,
   BookOpen,
   Briefcase,
   CheckCircle2,
+  Clock,
   Download,
   FileCheck,
+  FileCode,
+  FileSpreadsheet,
   FileText,
   GraduationCap,
+  Layers,
+  LineChart,
   Lock,
+  Printer,
+  RefreshCw,
+  ShieldCheck,
   Sparkles,
+  Target,
 } from "lucide-react";
 import { AppNav } from "@/components/layout/app-nav";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -27,6 +39,12 @@ import {
   listAcademicRecords,
 } from "@/services/gradient-api";
 import type { ReportResult } from "@/types/api";
+
+// Dynamically load 3D Document Matrix
+const DocumentMatrix3D = dynamic(() => import("@/components/3d/document-matrix-3d"), {
+  ssr: false,
+  loading: () => <div className="skeleton" style={{ width: 140, height: 100, borderRadius: "var(--radius-md)" }} />,
+});
 
 export default function ReportsPage() {
   const { session } = useAuth();
@@ -59,11 +77,6 @@ export default function ReportsPage() {
     loadRecords();
   }, []);
 
-  /**
-   * Download a report PDF with auth headers.
-   * Uses fetch + createObjectURL to trigger download in-browser,
-   * so Bearer tokens are correctly sent even without cookie support.
-   */
   async function downloadReport(reportId: string, filename: string, setLoading: (v: boolean) => void) {
     setLoading(true);
     setErrorMessage(null);
@@ -88,7 +101,7 @@ export default function ReportsPage() {
     try {
       const rep = await createAcademicReport(selectedRecordId);
       setAcademicReport(rep);
-      setStatusMessage("Academic Intelligence PDF compiled successfully — click Download to save.");
+      setStatusMessage("Academic Intelligence Dossier compiled successfully! Click Download to save your official PDF.");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to compile Academic report.");
     } finally {
@@ -103,7 +116,7 @@ export default function ReportsPage() {
     try {
       const rep = await createPlacementReport();
       setPlacementReport(rep);
-      setStatusMessage("Placement & Career Intelligence PDF compiled successfully — click Download to save.");
+      setStatusMessage("Placement & Career Intelligence Dossier compiled successfully! Click Download to save your official PDF.");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to compile Placement report. Ensure your Placement Profile and at least one assessment are completed.");
     } finally {
@@ -119,13 +132,28 @@ export default function ReportsPage() {
 
       <main className="section-sm">
         <div className="container" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-          {/* Header */}
-          <div>
-            <div className="eyebrow"><FileText size={14} /> Intelligence Reports</div>
-            <h1 className="section-title">Intelligence Dossiers</h1>
-            <p className="lead-text" style={{ margin: 0, fontSize: "0.95rem" }}>
-              Compile decision-support dossiers from your latest academic and placement data. Each PDF includes an executive snapshot, narrative signals, and a responsible-use disclosure.
-            </p>
+          {/* Top Dossier Command Banner with 3D Holographic Crystal */}
+          <div className="gradient-card card-pad" style={{ background: "var(--surface)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 20, flex: 1, minWidth: 280 }}>
+              <div style={{ width: 140, height: 100 }}>
+                <DocumentMatrix3D height={100} reportType={isSenior ? "placement" : "academic"} />
+              </div>
+              <div>
+                <div className="eyebrow"><FileCheck size={13} /> Decision-Support Center</div>
+                <h1 style={{ margin: "0 0 4px", fontSize: "1.5rem", fontWeight: 800 }}>
+                  Intelligence Dossier Center
+                </h1>
+                <p style={{ margin: 0, fontSize: "0.88rem", color: "var(--ink-secondary)" }}>
+                  Compile verifiable PDF dossiers from your latest academic metrics, IA regression slopes, and placement capabilities.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Badge variant="emerald" icon={<ShieldCheck size={13} />}>
+                ReportLab Server Engine Ready
+              </Badge>
+            </div>
           </div>
 
           {/* Feedback Messages */}
@@ -136,41 +164,65 @@ export default function ReportsPage() {
           )}
           {errorMessage && <StatusMessage kind="error">{errorMessage}</StatusMessage>}
 
-          {/* Reports Grid */}
+          {/* Dossiers Grid */}
           <div className="grid-2">
-            {/* 1. Academic Intelligence Report */}
+            {/* 1. Academic Intelligence Report Card */}
             <Card elevated>
               <CardHeader>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
                   <CardTitle style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <GraduationCap size={20} color="var(--primary)" /> Academic Intelligence Report
+                    <GraduationCap size={20} color="var(--primary)" /> Academic Intelligence Dossier
                   </CardTitle>
                   <Badge variant="emerald">Year 1 – 4</Badge>
                 </div>
                 <CardDescription>
-                  Complete academic standing, IA progression, weak-subject diagnosis, and personalized exam timetable
+                  Semester standing, IA linear regression, weak-subject diagnosis, attendance tracking, and balanced exam timetable
                 </CardDescription>
               </CardHeader>
 
               <CardContent style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <div>
-                  <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--ink)", marginBottom: 8 }}>
-                    Report Includes:
+                {/* Dossier Preview Blueprint */}
+                <div
+                  style={{
+                    padding: "16px",
+                    borderRadius: "var(--radius-sm)",
+                    background: "var(--surface-subtle)",
+                    border: "1px solid var(--line)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                  }}
+                >
+                  <div style={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", color: "var(--ink-tertiary)" }}>
+                    Document Sections Included:
                   </div>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: "0.85rem", color: "var(--ink-secondary)", lineHeight: 1.6 }}>
-                    <li>Verified institutional profile and semester details</li>
-                    <li>10th / 12th percentages, prior CGPA, and attendance compliance</li>
-                    <li>Per-subject IA trajectory table with mathematical slope indices</li>
-                    <li>Weak-subject diagnosis with attendance penalty warnings</li>
-                    <li>ML-predicted final CGPA and academic risk classification</li>
-                    <li>Full personalized study timetable with timed revision blocks</li>
-                  </ul>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, fontSize: "0.85rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <CheckCircle2 size={14} color="var(--primary)" /> CGPA &amp; SGPA Trajectory
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <CheckCircle2 size={14} color="var(--primary)" /> Multi-Exam IA Slopes
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <CheckCircle2 size={14} color="var(--primary)" /> Weak-Subject Diagnosis
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <CheckCircle2 size={14} color="var(--primary)" /> Attendance Safety Audit
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <CheckCircle2 size={14} color="var(--primary)" /> Solved Exam Timetable
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <CheckCircle2 size={14} color="var(--primary)" /> Actionable Recommendations
+                    </div>
+                  </div>
                 </div>
 
-                {academicRecords.length > 0 ? (
+                {/* Record Selector */}
+                {academicRecords.length > 1 && (
                   <div>
                     <label className="form-label" style={{ display: "block", marginBottom: 6 }}>
-                      Semester Record to Compile
+                      Select Semester Record
                     </label>
                     <select
                       className="form-select"
@@ -179,53 +231,36 @@ export default function ReportsPage() {
                     >
                       {academicRecords.map((rec) => (
                         <option key={rec.id} value={rec.id}>
-                          Semester {rec.semester} — CGPA {rec.previous_cgpa.toFixed(2)} &bull;{" "}
-                          {new Date(rec.created_at).toLocaleDateString()}
+                          Semester {rec.semester} &bull; CGPA: {rec.previous_cgpa}
                         </option>
                       ))}
                     </select>
                   </div>
-                ) : (
-                  <div
-                    style={{
-                      padding: "12px 14px",
-                      background: "var(--amber-subtle)",
-                      border: "1px solid rgba(192,120,23,0.25)",
-                      borderRadius: "var(--radius-sm)",
-                      fontSize: "0.83rem",
-                      color: "var(--amber)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    No academic records found — log your semester IA marks in the Academic workspace first.
-                  </div>
                 )}
 
-                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                {/* Action Buttons */}
+                <div style={{ display: "flex", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
                   <Button
-                    type="button"
                     variant="primary"
                     onClick={handleGenerateAcademicReport}
                     isLoading={generatingAcademic}
-                    disabled={!selectedRecordId}
-                    leftIcon={<FileCheck size={16} />}
+                    leftIcon={<FileText size={16} />}
                   >
-                    Compile Academic PDF
+                    Compile Academic Dossier
                   </Button>
 
                   {academicReport && (
                     <Button
-                      type="button"
-                      variant="secondary"
-                      isLoading={downloadingAcademic}
-                      leftIcon={<Download size={15} />}
+                      variant="outline"
                       onClick={() =>
                         downloadReport(
                           academicReport.id,
-                          `gradient-ai-academic-report.pdf`,
+                          academicReport.title || "academic_report.pdf",
                           setDownloadingAcademic
                         )
                       }
+                      isLoading={downloadingAcademic}
+                      leftIcon={<Download size={16} />}
                     >
                       Download PDF
                     </Button>
@@ -234,17 +269,19 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
 
-            {/* 2. Placement Intelligence Report (Year 3 & 4) */}
+            {/* 2. Placement Intelligence Report Card */}
             <Card elevated>
               <CardHeader>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8 }}>
                   <CardTitle style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Briefcase size={20} color="var(--primary)" /> Placement Intelligence Report
+                    <Briefcase size={20} color="var(--teal)" /> Placement Readiness Dossier
                   </CardTitle>
-                  <Badge variant="year">Year 3 &amp; 4 Only</Badge>
+                  <Badge variant={isSenior ? "emerald" : "neutral"}>
+                    {isSenior ? "Year 3 & 4" : "Locked (Year 1–2)"}
+                  </Badge>
                 </div>
                 <CardDescription>
-                  Full placement dossier, 6-dimension readiness radar, timed assessment scores, and target company roadmaps
+                  6-dimension capability radar, portfolio audit, assessment scorecards, and Tier-1 company roadmap
                 </CardDescription>
               </CardHeader>
 
@@ -252,62 +289,83 @@ export default function ReportsPage() {
                 {!isSenior ? (
                   <div
                     style={{
-                      padding: "24px",
-                      background: "var(--surface-subtle)",
+                      padding: "24px 20px",
                       borderRadius: "var(--radius-sm)",
-                      textAlign: "center",
+                      background: "var(--surface-subtle)",
                       border: "1px dashed var(--line-strong)",
+                      textAlign: "center",
                     }}
                   >
                     <Lock size={28} color="var(--ink-tertiary)" style={{ margin: "0 auto 10px" }} />
-                    <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--ink)", marginBottom: 6 }}>
-                      Locked for Year {session?.profile?.academic_year ?? 1} Students
+                    <div style={{ fontWeight: 700, fontSize: "0.95rem", marginBottom: 4 }}>
+                      Unlocks in Year 3
                     </div>
-                    <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--ink-secondary)", lineHeight: 1.55 }}>
-                      Placement Dossier reports compile industry internships, engineering projects, and Tier-1 assessment ratings.
-                      This feature unlocks automatically when you enter Year 3.
+                    <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--ink-secondary)", lineHeight: 1.5 }}>
+                      Placement dossiers compile timed aptitude tests, static code evaluations, and portfolio credentials once you enter your 3rd year.
                     </p>
                   </div>
                 ) : (
                   <>
-                    <div>
-                      <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--ink)", marginBottom: 8 }}>
-                        Report Includes:
+                    {/* Dossier Preview Blueprint */}
+                    <div
+                      style={{
+                        padding: "16px",
+                        borderRadius: "var(--radius-sm)",
+                        background: "var(--surface-subtle)",
+                        border: "1px solid var(--line)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 10,
+                      }}
+                    >
+                      <div style={{ fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", color: "var(--ink-tertiary)" }}>
+                        Document Sections Included:
                       </div>
-                      <ul style={{ margin: 0, paddingLeft: 18, fontSize: "0.85rem", color: "var(--ink-secondary)", lineHeight: 1.6 }}>
-                        <li>Comprehensive placement profile, target role, and technical skills</li>
-                        <li>Project repository and verified internship outcome log</li>
-                        <li>Timed Aptitude, Safe Coding Review, and Communication scorecards</li>
-                        <li>6-Dimension readiness breakdown (Academics, Aptitude, Coding, Comm, Portfolio, Skills)</li>
-                        <li>Placement probability forecast and expected package range (prototype model)</li>
-                        <li>Tier-1 target company strategy roadmap (Google, Amazon, Microsoft, etc.)</li>
-                      </ul>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, fontSize: "0.85rem" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <CheckCircle2 size={14} color="var(--teal)" /> 6-Dimension Radar Map
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <CheckCircle2 size={14} color="var(--teal)" /> Placement Probability
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <CheckCircle2 size={14} color="var(--teal)" /> Bounded Package Estimate
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <CheckCircle2 size={14} color="var(--teal)" /> Aptitude &amp; Coding Breakdown
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <CheckCircle2 size={14} color="var(--teal)" /> Project &amp; Internship Audit
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <CheckCircle2 size={14} color="var(--teal)" /> Target Company Strategy
+                        </div>
+                      </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    {/* Action Buttons */}
+                    <div style={{ display: "flex", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
                       <Button
-                        type="button"
                         variant="primary"
                         onClick={handleGeneratePlacementReport}
                         isLoading={generatingPlacement}
-                        leftIcon={<FileCheck size={16} />}
+                        leftIcon={<FileText size={16} />}
                       >
-                        Compile Placement PDF
+                        Compile Placement Dossier
                       </Button>
 
                       {placementReport && (
                         <Button
-                          type="button"
-                          variant="secondary"
-                          isLoading={downloadingPlacement}
-                          leftIcon={<Download size={15} />}
+                          variant="outline"
                           onClick={() =>
                             downloadReport(
                               placementReport.id,
-                              `gradient-ai-placement-report.pdf`,
+                              placementReport.title || "placement_report.pdf",
                               setDownloadingPlacement
                             )
                           }
+                          isLoading={downloadingPlacement}
+                          leftIcon={<Download size={16} />}
                         >
                           Download PDF
                         </Button>
@@ -319,22 +377,22 @@ export default function ReportsPage() {
             </Card>
           </div>
 
-          {/* ML Responsibility Disclosure */}
+          {/* Disclaimer & Integrity Note */}
           <div
             style={{
-              padding: "14px 18px",
+              padding: "16px 20px",
               borderRadius: "var(--radius-sm)",
               background: "var(--surface)",
               border: "1px solid var(--line)",
-              fontSize: "0.8rem",
+              fontSize: "0.82rem",
               color: "var(--ink-secondary)",
-              lineHeight: 1.55,
+              lineHeight: 1.6,
             }}
           >
-            <span style={{ fontWeight: 700, color: "var(--ink)" }}>Prototype Data Disclaimer: </span>
-            CGPA prediction and placement probability values in these reports are generated by scikit-learn Ridge and Logistic
-            Regression models trained on synthetic data for development purposes. They are illustrative only and should not
-            be used as validated indicators of academic or professional outcomes.
+            <span style={{ fontWeight: 700, color: "var(--ink)" }}>Responsible Intelligence Disclosure: </span>
+            CGPA forecasts and placement probabilities generated in these dossiers are powered by scikit-learn Ridge and Logistic
+            Regression models calibrated on prototype distributions. They provide indicative trajectory guidance and must not
+            be construed as institutional guarantees.
           </div>
         </div>
       </main>

@@ -308,6 +308,11 @@ button, input, select, textarea {
   border-radius: var(--radius-md);
 }
 
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 /* Badges */
 .badge {
   display: inline-flex;
@@ -318,6 +323,7 @@ button, input, select, textarea {
   font-weight: 600;
   border-radius: var(--radius-full);
   border: 1px solid transparent;
+  line-height: 1.4;
 }
 
 .badge-emerald {
@@ -344,12 +350,42 @@ button, input, select, textarea {
   border-color: var(--line);
 }
 
+.badge-teal {
+  background: var(--teal-subtle);
+  color: var(--teal);
+  border-color: rgba(25, 114, 120, 0.25);
+}
+
+.badge-indigo {
+  background: var(--indigo-subtle);
+  color: var(--indigo);
+  border-color: rgba(59, 89, 152, 0.25);
+}
+
+.badge-predicted {
+  background: rgba(18, 99, 78, 0.12);
+  color: var(--primary);
+  border: 1px dashed rgba(18, 99, 78, 0.4);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+}
+
+.badge-system {
+  background: var(--surface-subtle);
+  color: var(--ink-tertiary);
+  border: 1px solid var(--line-strong);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
 .badge-year {
   background: #0d1a16;
   color: #ffffff;
   font-size: 0.72rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Forms & Inputs */

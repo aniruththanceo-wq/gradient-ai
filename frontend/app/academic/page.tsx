@@ -1,7 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { FormEvent, useEffect, useState } from "react";
 import {
+  Activity,
   AlertCircle,
   ArrowRight,
   BarChart3,
@@ -10,6 +12,7 @@ import {
   CheckCircle2,
   Clock,
   Download,
+  FileText,
   GraduationCap,
   Layers,
   LineChart as LineChartIcon,
@@ -65,6 +68,17 @@ import type {
   SubjectPayload,
   TimetableResult,
 } from "@/types/api";
+
+// Dynamically load 3D visual modules
+const TrajectoryNetwork = dynamic(() => import("@/components/3d/trajectory-network"), {
+  ssr: false,
+  loading: () => <div className="skeleton" style={{ width: "100%", height: 180, borderRadius: "var(--radius-md)" }} />,
+});
+
+const TemporalMatrix3D = dynamic(() => import("@/components/3d/temporal-matrix-3d"), {
+  ssr: false,
+  loading: () => <div className="skeleton" style={{ width: "100%", height: 160, borderRadius: "var(--radius-md)" }} />,
+});
 
 export default function AcademicPage() {
   const { session } = useAuth();
@@ -213,7 +227,6 @@ export default function AcademicPage() {
     const sub = updated[subjectIndex];
     if (sub.ia_marks.length <= 1) return;
     sub.ia_marks = sub.ia_marks.filter((_, i) => i !== markIndex);
-    // re-index
     sub.ia_marks.forEach((m, idx) => {
       m.assessment_index = idx + 1;
       m.title = `IA ${idx + 1}`;
@@ -251,17 +264,10 @@ export default function AcademicPage() {
         subject_name: subject.name,
         exam_date: "",
       })));
-      setStatusMessage("Academic record saved successfully. Processing regression analysis and ML forecast...");
-
-      const ana = await getAcademicAnalysis(result.id);
-      setAnalysis(ana);
-
-      const pred = await predictAcademic(result.id);
-      setPrediction(pred);
-
+      setStatusMessage("Academic Record successfully saved & verified.");
       await loadExistingRecords();
+      await loadRecordAnalysis(result.id);
       setActiveTab("analytics");
-      setStatusMessage(`Analysis complete. Predicted CGPA: ${pred.predicted_cgpa.toFixed(2)} (${pred.risk_level}).`);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to save academic record.");
     } finally {
@@ -269,39 +275,42 @@ export default function AcademicPage() {
     }
   }
 
-  // Generate Timetable Flow
+  // Timetable Generator Flow
   async function handleGenerateTimetable() {
     if (!activeRecordId) {
-      setErrorMessage("Please save your academic records before generating a timetable.");
+      setErrorMessage("Please save your academic records first before solving the timetable.");
       return;
     }
-    if (examDates.length === 0 || examDates.some((exam) => !exam.subject_name.trim() || !exam.exam_date)) {
-      setErrorMessage("Add a subject and a valid exam date for every timetable entry.");
+
+    const validExamDates = examDates.filter((ed) => ed.subject_name.trim() && ed.exam_date.trim());
+    if (validExamDates.length === 0) {
+      setErrorMessage("Please specify at least one subject with a valid exam date.");
       return;
     }
 
     setGeneratingTT(true);
     setErrorMessage(null);
+    setStatusMessage(null);
+
     try {
-      const result = await generateTimetable({
+      const tt = await generateTimetable({
         academic_record_id: activeRecordId,
-        exam_dates: examDates,
         available_study_hours_per_day: availableDailyHours,
+        exam_dates: validExamDates,
         preferred_start_time: preferredStartTime,
         block_minutes: blockDuration,
         include_weekends: includeWeekends,
       });
-      setTimetable(result);
-      setActiveTab("timetable");
-      setStatusMessage("Personalized study timetable generated based on weak subject priority and exam proximity.");
+      setTimetable(tt);
+      setStatusMessage("Exam timetable generated and balanced with weak-subject weighting.");
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to generate timetable.");
+      setErrorMessage(err instanceof Error ? err.message : "Failed to solve exam timetable.");
     } finally {
       setGeneratingTT(false);
     }
   }
 
-  // Generate Academic Report Flow
+  // PDF Report Compilation & Download
   async function handleCreateReport() {
     if (!activeRecordId) return;
     setGeneratingReport(true);
@@ -309,26 +318,25 @@ export default function AcademicPage() {
     try {
       const rep = await createAcademicReport(activeRecordId);
       setGeneratedReportId(rep.id);
-      setStatusMessage("Academic Intelligence PDF report generated successfully — click Download to save.");
+      setStatusMessage("Academic Intelligence Dossier compiled! Click Download PDF below.");
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to generate PDF report.");
+      setErrorMessage(err instanceof Error ? err.message : "Report compilation failed.");
     } finally {
       setGeneratingReport(false);
     }
   }
 
-  // Format Recharts Multi-Subject Trajectory Data
-  const chartColors = ["#12634e", "#197278", "#c07817", "#b8332c", "#3b5998", "#7a3e9d"];
-  const maxIANumber = Math.max(...subjects.map((s) => s.ia_marks.length), 3);
-  const multiSubjectChartData = Array.from({ length: maxIANumber }, (_, i) => {
-    const dataPoint: Record<string, any> = { name: `IA ${i + 1}` };
-    analysis?.subjects?.forEach((sub) => {
-      if (sub.percentages[i] !== undefined) {
-        dataPoint[sub.subject] = sub.percentages[i];
-      }
-    });
-    return dataPoint;
-  });
+  async function handleDownloadReport() {
+    if (!generatedReportId) return;
+    setDownloadingReport(true);
+    try {
+      await downloadReportPdf(generatedReportId, `Gradient_Academic_Dossier_Sem${semester}.pdf`);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to download PDF.");
+    } finally {
+      setDownloadingReport(false);
+    }
+  }
 
   return (
     <PageTransition className="page-shell">
@@ -336,113 +344,58 @@ export default function AcademicPage() {
 
       <main className="section-sm">
         <div className="container" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          {/* Header */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+          {/* Header & Tabs */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 16 }}>
             <div>
-              <div className="eyebrow"><GraduationCap size={14} /> Academic Intelligence</div>
-              <h1 className="section-title">Academic Analytics & Exam Planning</h1>
+              <div className="eyebrow"><GraduationCap size={14} /> Analytics Workspace</div>
+              <h1 className="section-title">Academic Intelligence</h1>
               <p className="lead-text" style={{ margin: 0, fontSize: "0.95rem" }}>
-                Log flexible internal assessments, track mathematical regression trajectories, and generate weak-subject-aware exam timetables.
+                Multi-subject IA linear regression, weak-subject diagnosis, attendance tracking, and balanced exam scheduling.
               </p>
             </div>
 
-            {activeRecordId && (
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCreateReport}
-                  isLoading={generatingReport}
-                  leftIcon={<Download size={15} />}
-                >
-                  Generate PDF Report
-                </Button>
-                {generatedReportId && (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    isLoading={downloadingReport}
-                    leftIcon={<Download size={15} />}
-                    onClick={async () => {
-                      setDownloadingReport(true);
-                      try {
-                        await downloadReportPdf(generatedReportId, `academic-report-sem-${semester}.pdf`);
-                      } catch (e) {
-                        setErrorMessage(e instanceof Error ? e.message : "PDF download failed.");
-                      } finally {
-                        setDownloadingReport(false);
-                      }
-                    }}
-                  >
-                    Download PDF
-                  </Button>
-                )}
-              </div>
-            )}
+            <Tabs
+              activeTab={activeTab}
+              onChange={(t) => setActiveTab(t as any)}
+              tabs={[
+                { id: "records", label: "Data Intake", icon: <Layers size={15} /> },
+                { id: "analytics", label: "Analytics & Trends", icon: <LineChartIcon size={15} /> },
+                { id: "timetable", label: "Exam Timetable", icon: <CalendarDays size={15} /> },
+              ]}
+            />
           </div>
 
-          {/* Navigation Tabs */}
-          <Tabs
-            tabs={[
-              { id: "records", label: "1. Academic & IA Data Entry", icon: <Layers size={16} /> },
-              { id: "analytics", label: "2. IA Trajectories & CGPA Forecast", icon: <LineChartIcon size={16} /> },
-              { id: "timetable", label: "3. Exam Timetable Solver", icon: <CalendarDays size={16} /> },
-            ]}
-            activeTab={activeTab}
-            onChange={(tab) => setActiveTab(tab as any)}
-          />
-
           {/* Feedback Messages */}
-          {statusMessage && <StatusMessage kind="success">{statusMessage}</StatusMessage>}
+          {statusMessage && (
+            <StatusMessage kind="success">
+              <CheckCircle2 size={16} style={{ flexShrink: 0 }} /> {statusMessage}
+            </StatusMessage>
+          )}
           {errorMessage && <StatusMessage kind="error">{errorMessage}</StatusMessage>}
 
-          {/* TAB 1: ACADEMIC & IA DATA ENTRY */}
+          {/* TAB 1: ACADEMIC DATA ENTRY & DYNAMIC SUBJECTS */}
           {activeTab === "records" && (
             <form onSubmit={handleSubmitRecord} style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              {/* Semester & Study Habits */}
               <Card elevated>
                 <CardHeader>
-                  <CardTitle>Academic Standing & Study Habits</CardTitle>
+                  <CardTitle>Academic Standing &amp; Study Profile</CardTitle>
                   <CardDescription>
-                    Historical scores, prior CGPA, and weekly study consistency parameters
+                    Enter your prior semester baseline, attendance, and study habits to calibrate the regression model.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid-4" style={{ marginBottom: 18 }}>
-                    <Select
-                      label="Semester"
+                  <div className="grid-4" style={{ marginBottom: 20 }}>
+                    <Input
+                      label="Current Semester"
+                      type="number"
+                      min={1}
+                      max={8}
                       value={semester}
                       onChange={(e) => setSemester(Number(e.target.value))}
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
-                        <option key={s} value={s}>Semester {s}</option>
-                      ))}
-                    </Select>
-
-                    <Input
-                      label="10th Percentage"
-                      type="number"
-                      step="0.1"
-                      min={35}
-                      max={100}
-                      value={tenth}
-                      onChange={(e) => setTenth(Number(e.target.value))}
                       required
                     />
-
                     <Input
-                      label="12th Percentage"
-                      type="number"
-                      step="0.1"
-                      min={35}
-                      max={100}
-                      value={twelfth}
-                      onChange={(e) => setTwelfth(Number(e.target.value))}
-                      required
-                    />
-
-                    <Input
-                      label="Prior CGPA"
+                      label="Prior CGPA (/10)"
                       type="number"
                       step="0.01"
                       min={0}
@@ -451,23 +404,31 @@ export default function AcademicPage() {
                       onChange={(e) => setPrevCGPA(Number(e.target.value))}
                       required
                     />
-                  </div>
-
-                  <div className="grid-4">
+                    <Input
+                      label="Prior SGPA (/10)"
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      max={10}
+                      value={prevSGPA}
+                      onChange={(e) => setPrevSGPA(Number(e.target.value))}
+                      required
+                    />
                     <Input
                       label="Overall Attendance %"
                       type="number"
-                      step="0.5"
+                      step="0.1"
                       min={0}
                       max={100}
                       value={attendance}
                       onChange={(e) => setAttendance(Number(e.target.value))}
-                      hint="Safety line is 75%"
                       required
                     />
+                  </div>
 
+                  <div className="grid-4">
                     <Input
-                      label="Weekday Study Hours / Day"
+                      label="Weekday Study (hrs/day)"
                       type="number"
                       step="0.5"
                       min={0}
@@ -476,9 +437,8 @@ export default function AcademicPage() {
                       onChange={(e) => setWeekdayHours(Number(e.target.value))}
                       required
                     />
-
                     <Input
-                      label="Weekend Study Hours / Day"
+                      label="Weekend Study (hrs/day)"
                       type="number"
                       step="0.5"
                       min={0}
@@ -487,29 +447,37 @@ export default function AcademicPage() {
                       onChange={(e) => setWeekendHours(Number(e.target.value))}
                       required
                     />
-
                     <Select
                       label="Study Consistency"
                       value={consistency}
                       onChange={(e) => setConsistency(e.target.value)}
                     >
-                      <option value="high">High (Daily Fixed Slots)</option>
-                      <option value="consistent">Consistent (Regular Routine)</option>
-                      <option value="moderate">Moderate (Before IA / Deadlines)</option>
-                      <option value="inconsistent">Inconsistent (Sporadic)</option>
+                      <option value="consistent">Consistent Daily</option>
+                      <option value="moderate">Moderate Weekly</option>
+                      <option value="irregular">Irregular / Exam Cram</option>
+                    </Select>
+                    <Select
+                      label="Revision Frequency"
+                      value={revisionFreq}
+                      onChange={(e) => setRevisionFreq(e.target.value)}
+                    >
+                      <option value="daily">Daily Recall</option>
+                      <option value="weekly">Weekly Summary</option>
+                      <option value="monthly">Monthly Milestone</option>
+                      <option value="before_exams">Exam Proximity Only</option>
                     </Select>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Dynamic Subject & Flexible IA Manager */}
+              {/* Dynamic Enrolled Subjects & Flexible IA Marks */}
               <Card elevated>
                 <CardHeader>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
                     <div>
-                      <CardTitle>Enrolled Subjects & Flexible IA Marks</CardTitle>
+                      <CardTitle>Enrolled Subjects &amp; Internal Assessment (IA) Tests</CardTitle>
                       <CardDescription>
-                        Supports flexible number of IA exams per subject (IA1, IA2, IA3, IA4+).
+                        Track flexible IA marks (IA1 through IA4+) per subject. Slopes and risk factors are automatically calculated.
                       </CardDescription>
                     </div>
                     <Button type="button" variant="secondary" size="sm" onClick={addSubject} leftIcon={<Plus size={15} />}>
@@ -519,72 +487,79 @@ export default function AcademicPage() {
                 </CardHeader>
 
                 <CardContent style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                  {subjects.map((subject, sIdx) => (
+                  {subjects.map((sub, sIdx) => (
                     <div
                       key={sIdx}
                       className="gradient-card card-pad"
-                      style={{ background: "var(--surface-subtle)", border: "1px solid var(--line)" }}
+                      style={{
+                        background: "var(--surface)",
+                        border: "1px solid var(--line-strong)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 16,
+                      }}
                     >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontWeight: 800, color: "var(--primary)" }}>#{sIdx + 1}</span>
-                          <span style={{ fontWeight: 700, fontSize: "1.05rem" }}>{subject.name || "Unnamed Subject"}</span>
+                      {/* Subject Metadata Row */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: 12, flex: 1, minWidth: 260, flexWrap: "wrap" }}>
+                          <div style={{ flex: 2, minWidth: 160 }}>
+                            <Input
+                              label="Subject Name"
+                              value={sub.name}
+                              onChange={(e) => {
+                                const next = [...subjects];
+                                next[sIdx].name = e.target.value;
+                                setSubjects(next);
+                              }}
+                              required
+                            />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 100 }}>
+                            <Input
+                              label="Code"
+                              value={sub.code || ""}
+                              onChange={(e) => {
+                                const next = [...subjects];
+                                next[sIdx].code = e.target.value;
+                                setSubjects(next);
+                              }}
+                            />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 110 }}>
+                            <Input
+                              label="Attendance %"
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={sub.attendance_percentage || ""}
+                              onChange={(e) => {
+                                const next = [...subjects];
+                                next[sIdx].attendance_percentage = Number(e.target.value);
+                                setSubjects(next);
+                              }}
+                            />
+                          </div>
                         </div>
+
                         {subjects.length > 1 && (
-                          <button
+                          <Button
                             type="button"
+                            variant="ghost"
+                            size="sm"
                             onClick={() => removeSubject(sIdx)}
-                            className="btn btn-ghost btn-sm"
-                            style={{ color: "var(--danger)" }}
-                            title="Remove subject"
+                            style={{ color: "var(--danger)", marginTop: 24 }}
+                            aria-label={`Remove subject ${sub.name}`}
                           >
                             <Trash2 size={16} />
-                          </button>
+                          </Button>
                         )}
                       </div>
 
-                      <div className="grid-3" style={{ marginBottom: 16 }}>
-                        <Input
-                          label="Subject Name"
-                          value={subject.name}
-                          onChange={(e) => {
-                            const updated = [...subjects];
-                            updated[sIdx].name = e.target.value;
-                            setSubjects(updated);
-                          }}
-                          required
-                        />
-
-                        <Input
-                          label="Subject Code"
-                          value={subject.code || ""}
-                          onChange={(e) => {
-                            const updated = [...subjects];
-                            updated[sIdx].code = e.target.value;
-                            setSubjects(updated);
-                          }}
-                        />
-
-                        <Input
-                          label="Subject Attendance %"
-                          type="number"
-                          step="0.5"
-                          min={0}
-                          max={100}
-                          value={subject.attendance_percentage ?? 80}
-                          onChange={(e) => {
-                            const updated = [...subjects];
-                            updated[sIdx].attendance_percentage = Number(e.target.value);
-                            setSubjects(updated);
-                          }}
-                        />
-                      </div>
-
-                      {/* IA Marks Rows */}
+                      {/* IA Marks Row */}
                       <div>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                          <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--ink-secondary)", textTransform: "uppercase" }}>
-                            Internal Assessments ({subject.ia_marks.length} recorded)
+                          <span style={{ fontSize: "0.82rem", fontWeight: 700, textTransform: "uppercase", color: "var(--ink-tertiary)" }}>
+                            Internal Assessments (IA Exams)
                           </span>
                           <Button
                             type="button"
@@ -592,60 +567,59 @@ export default function AcademicPage() {
                             size="sm"
                             onClick={() => addIAMark(sIdx)}
                             leftIcon={<Plus size={13} />}
+                            style={{ fontSize: "0.78rem", padding: "4px 8px" }}
                           >
                             Add IA Exam
                           </Button>
                         </div>
 
-                        <div className="grid-4" style={{ gap: 10 }}>
-                          {subject.ia_marks.map((mark, mIdx) => (
+                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                          {sub.ia_marks.map((ia, mIdx) => (
                             <div
                               key={mIdx}
                               style={{
-                                padding: "10px 12px",
-                                background: "var(--surface)",
-                                borderRadius: "var(--radius-sm)",
-                                border: "1px solid var(--line)",
                                 display: "flex",
-                                flexDirection: "column",
+                                alignItems: "center",
                                 gap: 6,
+                                padding: "8px 12px",
+                                borderRadius: "var(--radius-sm)",
+                                background: "var(--surface-subtle)",
+                                border: "1px solid var(--line)",
                               }}
                             >
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <span style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--ink)" }}>
-                                  {mark.title || `IA ${mIdx + 1}`}
-                                </span>
-                                {subject.ia_marks.length > 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => removeIAMark(sIdx, mIdx)}
-                                    style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--ink-tertiary)", padding: 2 }}
-                                  >
-                                    &times;
-                                  </button>
-                                )}
-                              </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <input
-                                  className="form-input"
-                                  type="number"
-                                  step="0.5"
-                                  min={0}
-                                  max={mark.max_marks}
-                                  value={mark.marks_obtained}
-                                  onChange={(e) => {
-                                    const updated = [...subjects];
-                                    updated[sIdx].ia_marks[mIdx].marks_obtained = Number(e.target.value);
-                                    setSubjects(updated);
-                                  }}
-                                  style={{ padding: "6px 8px", fontSize: "0.85rem" }}
-                                  required
-                                />
-                                <span style={{ fontSize: "0.8rem", color: "var(--ink-tertiary)" }}>/ {mark.max_marks}</span>
-                              </div>
-                              <div style={{ fontSize: "0.75rem", color: "var(--primary)", fontWeight: 700 }}>
-                                {Math.round((mark.marks_obtained / mark.max_marks) * 100)}%
-                              </div>
+                              <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--ink)" }}>{ia.title}:</span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={ia.max_marks}
+                                value={ia.marks_obtained}
+                                onChange={(e) => {
+                                  const next = [...subjects];
+                                  next[sIdx].ia_marks[mIdx].marks_obtained = Number(e.target.value);
+                                  setSubjects(next);
+                                }}
+                                style={{
+                                  width: 50,
+                                  padding: "4px 6px",
+                                  border: "1px solid var(--line-strong)",
+                                  borderRadius: 4,
+                                  fontSize: "0.85rem",
+                                  textAlign: "center",
+                                }}
+                                required
+                              />
+                              <span style={{ fontSize: "0.8rem", color: "var(--ink-tertiary)" }}>/ {ia.max_marks}</span>
+                              {sub.ia_marks.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeIAMark(sIdx, mIdx)}
+                                  style={{ background: "none", border: "none", color: "var(--ink-tertiary)", cursor: "pointer", padding: 2 }}
+                                  title="Remove IA"
+                                  aria-label={`Remove ${ia.title}`}
+                                >
+                                  &times;
+                                </button>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -653,9 +627,9 @@ export default function AcademicPage() {
                     </div>
                   ))}
 
-                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
-                    <Button type="submit" variant="primary" size="lg" isLoading={saving} rightIcon={<Sparkles size={18} />}>
-                      Save & Run Intelligence Analytics
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                    <Button type="submit" variant="primary" size="lg" isLoading={saving}>
+                      Save Academic Records &amp; Run Analysis
                     </Button>
                   </div>
                 </CardContent>
@@ -663,130 +637,131 @@ export default function AcademicPage() {
             </form>
           )}
 
-          {/* TAB 2: IA TRAJECTORIES & CGPA FORECAST */}
+          {/* TAB 2: ANALYTICS & REGRESSION TRENDS */}
           {activeTab === "analytics" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               {!analysis ? (
                 <EmptyState
-                  icon={<LineChartIcon size={32} color="var(--primary)" />}
-                  title="No Analysis Computed Yet"
-                  description="Complete the Academic Data Entry form in Tab 1 to generate regression slopes and ML forecasts."
+                  icon={<BarChart3 size={32} color="var(--primary)" />}
+                  title="No Academic Analysis Available"
+                  description="Save your semester subjects and IA marks first to generate progression slopes and CGPA forecasts."
                   action={
-                    <Button variant="primary" onClick={() => setActiveTab("records")}>
-                      Go to Data Entry
+                    <Button variant="primary" size="md" onClick={() => setActiveTab("records")}>
+                      Enter Academic Data
                     </Button>
                   }
                 />
               ) : (
                 <>
-                  {/* Top Forecast KPI Highlights with Animated Counters */}
-                  <div className="grid-3">
-                    <GlowingCard className="card-pad">
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-tertiary)", textTransform: "uppercase" }}>
-                          Predicted CGPA
-                        </span>
-                        <Sparkles size={20} color="var(--primary)" />
+                  {/* Visual 3D Trajectory Banner & Action Row */}
+                  <div className="gradient-card card-pad" style={{ background: "var(--surface)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 20, flex: 1, minWidth: 280 }}>
+                      <div style={{ width: 140, height: 100 }}>
+                        <TrajectoryNetwork height={100} subjectsCount={subjects.length} averageTrend={prediction?.risk_level === "High Risk" ? "declining" : "improving"} />
                       </div>
-                      <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--primary)" }}>
-                        {prediction ? (
-                          <AnimatedCounter value={prediction.predicted_cgpa} decimals={2} duration={1} />
-                        ) : (
-                          "—"
-                        )}
-                        <span style={{ fontSize: "0.85rem", color: "var(--ink-tertiary)", fontWeight: 500, marginLeft: 4 }}>/ 10.0</span>
+                      <div>
+                        <div className="eyebrow"><Sparkles size={13} /> Mathematical Trajectory Model</div>
+                        <h2 style={{ margin: "0 0 4px", fontSize: "1.3rem", fontWeight: 800 }}>
+                          Multi-Subject Regression Diagnostic
+                        </h2>
+                        <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--ink-secondary)" }}>
+                          Evaluating {subjects.length} enrolled subjects across all recorded internal assessments.
+                        </p>
                       </div>
-                      <div style={{ fontSize: "0.78rem", color: "var(--teal)", fontWeight: 600, marginTop: 4 }}>
-                        Overall Trajectory: {analysis.overall_trend.toUpperCase()}
-                      </div>
-                    </GlowingCard>
+                    </div>
 
-                    <GlowingCard className="card-pad">
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-tertiary)", textTransform: "uppercase" }}>
-                          Academic Risk Level
-                        </span>
-                        <RiskBadge risk={prediction?.risk_level || "Low Risk"} />
-                      </div>
-                      <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--ink)" }}>
-                        {prediction?.risk_level ? prediction.risk_level.replace(" Risk", "") : "Low"}
-                      </div>
-                      <div style={{ fontSize: "0.78rem", color: "var(--ink-secondary)", marginTop: 4 }}>
-                        Stability Classification
-                      </div>
-                    </GlowingCard>
-
-                    <GlowingCard className="card-pad">
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-tertiary)", textTransform: "uppercase" }}>
-                          Average IA Mark
-                        </span>
-                        <BarChart3 size={20} color="var(--teal)" />
-                      </div>
-                      <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--ink)" }}>
-                        <AnimatedCounter value={analysis.average_ia_percentage} decimals={1} suffix="%" duration={1} />
-                      </div>
-                      <div style={{ fontSize: "0.78rem", color: "var(--ink-secondary)", marginTop: 4 }}>
-                        {analysis.strongest_subject ? `Strongest: ${analysis.strongest_subject}` : "Multi-Exam Mean"}
-                      </div>
-                    </GlowingCard>
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <Button variant="secondary" size="sm" onClick={() => loadRecordAnalysis(activeRecordId!)} leftIcon={<RefreshCw size={14} />}>
+                        Refresh
+                      </Button>
+                      <Button variant="primary" size="sm" onClick={handleCreateReport} isLoading={generatingReport} leftIcon={<FileText size={14} />}>
+                        Compile Dossier
+                      </Button>
+                      {generatedReportId && (
+                        <Button variant="outline" size="sm" onClick={handleDownloadReport} isLoading={downloadingReport} leftIcon={<Download size={14} />}>
+                          Download PDF
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Radial CGPA & Risk Matrix Diagnosis */}
-                  <div className="grid-2" style={{ alignItems: "center", gap: 20 }}>
-                    <div style={{ display: "flex", justifyContent: "center", padding: "12px 0" }}>
-                      <CGPARing
-                        cgpa={prevCGPA}
-                        predictedCgpa={prediction?.predicted_cgpa}
-                        size={180}
-                      />
-                    </div>
-                    <RiskMatrix
-                      riskLevel={prediction?.risk_level || "Low Risk"}
-                      contributingFactors={prediction?.contributing_factors}
-                      attendanceRate={attendance}
+                  {/* Core Metric Cards */}
+                  <div className="grid-4">
+                    <MetricCard
+                      title="Current Baseline"
+                      value={prevCGPA ? `${prevCGPA.toFixed(2)}` : "—"}
+                      subValue="Institutional CGPA"
+                    />
+                    <MetricCard
+                      title="Predicted CGPA"
+                      value={prediction?.predicted_cgpa ? `${prediction.predicted_cgpa.toFixed(2)}` : "—"}
+                      subValue="ML Ridge Model"
+                      trend="improving"
+                      trendLabel="Predicted"
+                    />
+                    <MetricCard
+                      title="Academic Risk"
+                      value={prediction?.risk_level ? prediction.risk_level.replace(" Risk", "") : "Low"}
+                      subValue={prediction?.risk_level === "High Risk" ? "Immediate Attention" : "Within Parameters"}
+                      trend={prediction?.risk_level === "High Risk" ? "declining" : "improving"}
+                    />
+                    <MetricCard
+                      title="Attendance Health"
+                      value={attendance ? `${attendance.toFixed(1)}%` : "—"}
+                      subValue={attendance < 75 ? "Below Safety Line" : "Compliant (>75%)"}
+                      trend={attendance < 75 ? "declining" : "improving"}
                     />
                   </div>
 
-                  {/* Multi-Subject Trajectory Chart */}
-                  <Card elevated>
-                    <CardHeader>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div>
-                          <CardTitle>Subject IA Progression Curves</CardTitle>
-                          <CardDescription>
-                            Linear regression trajectory and fluctuation tracking across all internal assessments
-                          </CardDescription>
-                        </div>
-                        <Badge variant="emerald">Live Curves</Badge>
-                      </div>
-                    </CardHeader>
-
-                    <CardContent>
-                      <IATrendChart subjects={analysis.subjects} height={340} />
-                    </CardContent>
-                  </Card>
-
-                  {/* Weak-Subject Diagnosis & Actionable Recommendations */}
-                  <div className="grid-2">
-                    {/* Weak Subject Diagnosis */}
-                    <Card>
+                  {/* Multi-Subject IA Trend Chart & Risk Matrix */}
+                  <div className="grid-2-1">
+                    <Card elevated>
                       <CardHeader>
-                        <CardTitle>Weak-Subject Priority Analysis</CardTitle>
+                        <CardTitle>Internal Assessment Progression Trendlines</CardTitle>
                         <CardDescription>
-                          Mathematical weakness scoring considering average, latest mark, slope, and attendance
+                          Interactive trajectory curves across IA1, IA2, IA3, and IA4+ per subject
                         </CardDescription>
                       </CardHeader>
+                      <CardContent>
+                        <IATrendChart subjects={analysis.subjects} height={320} />
+                      </CardContent>
+                    </Card>
 
-                      <CardContent style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                        {analysis.subjects.map((sub) => (
+                    <Card elevated>
+                      <CardHeader>
+                        <CardTitle>Academic Risk Factors</CardTitle>
+                        <CardDescription>
+                          Weighted risk decomposition matrix
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <RiskMatrix
+                          riskLevel={prediction?.risk_level || "Low Risk"}
+                          contributingFactors={prediction?.contributing_factors}
+                          attendanceRate={attendance}
+                        />
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Subject Diagnostic Details */}
+                  <div className="grid-2">
+                    <Card elevated>
+                      <CardHeader>
+                        <CardTitle>Individual Subject Trajectory Diagnosis</CardTitle>
+                        <CardDescription>
+                          Regression slope, average marks, and weakness explanations
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        {analysis.subjects.map((sub, sIdx) => (
                           <div
-                            key={sub.subject}
+                            key={sIdx}
                             style={{
                               padding: "14px 16px",
                               borderRadius: "var(--radius-sm)",
-                              background: sub.priority === "High" ? "var(--danger-subtle)" : "var(--surface-subtle)",
-                              border: `1px solid ${sub.priority === "High" ? "rgba(184, 51, 44, 0.25)" : "var(--line)"}`,
+                              background: "var(--surface-subtle)",
+                              border: "1px solid var(--line)",
                               display: "flex",
                               flexDirection: "column",
                               gap: 8,
@@ -794,8 +769,16 @@ export default function AcademicPage() {
                           >
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                               <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>{sub.subject}</span>
-                              <div style={{ display: "flex", gap: 8 }}>
-                                <Badge variant={sub.trend === "improving" ? "emerald" : sub.trend === "declining" ? "danger" : "amber"}>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <Badge
+                                  variant={
+                                    sub.trend === "improving"
+                                      ? "emerald"
+                                      : sub.trend === "declining"
+                                      ? "danger"
+                                      : "amber"
+                                  }
+                                >
                                   {sub.trend}
                                 </Badge>
                                 <PriorityBadge priority={sub.priority} />
@@ -807,7 +790,7 @@ export default function AcademicPage() {
                               {sub.attendance_percentage !== null && ` &bull; Attendance: ${sub.attendance_percentage}%`}
                             </div>
 
-                            <ul style={{ margin: 0, paddingLeft: 18, fontSize: "0.8rem", color: "var(--ink)" }}>
+                            <ul style={{ margin: 0, paddingLeft: 18, fontSize: "0.8rem", color: "var(--ink)", lineHeight: 1.5 }}>
                               {sub.reasons.map((r, rIdx) => (
                                 <li key={rIdx}>{r}</li>
                               ))}
@@ -821,9 +804,9 @@ export default function AcademicPage() {
                     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                       <Card>
                         <CardHeader>
-                          <CardTitle>Academic Advisory Recommendations</CardTitle>
+                          <CardTitle>Targeted Study Recommendations</CardTitle>
                           <CardDescription>
-                            Targeted action items derived from your performance patterns
+                            Prioritized action items derived from your regression patterns
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -867,7 +850,7 @@ export default function AcademicPage() {
                             onClick={() => setActiveTab("timetable")}
                             rightIcon={<ArrowRight size={16} />}
                           >
-                            Configure Exam Dates & Generate Timetable
+                            Configure Exam Dates &amp; Generate Timetable
                           </Button>
                         </div>
                       </div>
@@ -878,16 +861,23 @@ export default function AcademicPage() {
             </div>
           )}
 
-          {/* TAB 3: EXAM TIMETABLE SOLVER */}
+          {/* TAB 3: DYNAMIC EXAM TIMETABLE SOLVER */}
           {activeTab === "timetable" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              {/* Configuration Form */}
+              {/* Configuration Form with 3D Temporal Matrix */}
               <Card elevated>
                 <CardHeader>
-                  <CardTitle>Exam Dates & Study Schedule Parameters</CardTitle>
-                  <CardDescription>
-                    Configure exam dates for enrolled subjects and your daily available study blocks.
-                  </CardDescription>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                    <div>
+                      <CardTitle>Exam Dates &amp; Study Schedule Parameters</CardTitle>
+                      <CardDescription>
+                        Configure exam dates for enrolled subjects and your daily available study blocks.
+                      </CardDescription>
+                    </div>
+                    <div style={{ width: 100, height: 60 }}>
+                      <TemporalMatrix3D height={60} examCount={examDates.length || 3} />
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="grid-2" style={{ gap: 24, marginBottom: 20 }}>
@@ -897,48 +887,61 @@ export default function AcademicPage() {
                         Subject Examination Dates
                       </label>
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        {examDates.map((ed, i) => (
-                          <div
-                            key={i}
-                            style={{
-                              display: "flex",
-                              gap: 10,
-                              alignItems: "center",
-                              padding: "8px 12px",
-                              background: "var(--surface-subtle)",
-                              borderRadius: "var(--radius-sm)",
-                              border: "1px solid var(--line)",
-                            }}
-                          >
-                            <input
-                              aria-label={`Exam subject ${i + 1}`}
-                              className="form-input"
-                              list="academic-subjects"
-                              value={ed.subject_name}
-                              onChange={(e) => setExamDates((current) => current.map((exam, index) => index === i ? { ...exam, subject_name: e.target.value } : exam))}
-                              placeholder="Subject name"
-                              style={{ flex: 1, minWidth: 140, padding: "6px 10px", fontSize: "0.85rem" }}
-                            />
-                            <input
-                              type="date"
-                              aria-label={`Exam date for ${ed.subject_name || `entry ${i + 1}`}`}
-                              className="form-input"
-                              value={ed.exam_date}
-                              min={new Date().toISOString().slice(0, 10)}
-                              onChange={(e) => setExamDates((current) => current.map((exam, index) => index === i ? { ...exam, exam_date: e.target.value } : exam))}
-                              style={{ width: 160, padding: "6px 10px", fontSize: "0.85rem" }}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              aria-label={`Remove ${ed.subject_name || "exam"}`}
-                              onClick={() => setExamDates((current) => current.filter((_, index) => index !== i))}
+                        {examDates.map((ed, i) => {
+                          const examDateObj = ed.exam_date ? new Date(ed.exam_date) : null;
+                          const daysLeft = examDateObj
+                            ? Math.ceil((examDateObj.getTime() - Date.now()) / (1000 * 3600 * 24))
+                            : null;
+
+                          return (
+                            <div
+                              key={i}
+                              style={{
+                                display: "flex",
+                                gap: 10,
+                                alignItems: "center",
+                                padding: "8px 12px",
+                                background: "var(--surface-subtle)",
+                                borderRadius: "var(--radius-sm)",
+                                border: "1px solid var(--line)",
+                                flexWrap: "wrap",
+                              }}
                             >
-                              <Trash2 size={15} />
-                            </Button>
-                          </div>
-                        ))}
+                              <input
+                                aria-label={`Exam subject ${i + 1}`}
+                                className="form-input"
+                                list="academic-subjects"
+                                value={ed.subject_name}
+                                onChange={(e) => setExamDates((current) => current.map((exam, index) => index === i ? { ...exam, subject_name: e.target.value } : exam))}
+                                placeholder="Subject name"
+                                style={{ flex: 1, minWidth: 140, padding: "6px 10px", fontSize: "0.85rem" }}
+                              />
+                              <input
+                                type="date"
+                                aria-label={`Exam date for ${ed.subject_name || `entry ${i + 1}`}`}
+                                className="form-input"
+                                value={ed.exam_date}
+                                min={new Date().toISOString().slice(0, 10)}
+                                onChange={(e) => setExamDates((current) => current.map((exam, index) => index === i ? { ...exam, exam_date: e.target.value } : exam))}
+                                style={{ width: 150, padding: "6px 10px", fontSize: "0.85rem" }}
+                              />
+                              {daysLeft !== null && (
+                                <Badge variant={daysLeft <= 3 ? "danger" : daysLeft <= 7 ? "amber" : "emerald"}>
+                                  {daysLeft > 0 ? `${daysLeft}d left` : "Today"}
+                                </Badge>
+                              )}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                aria-label={`Remove ${ed.subject_name || "exam"}`}
+                                onClick={() => setExamDates((current) => current.filter((_, index) => index !== i))}
+                              >
+                                <Trash2 size={15} />
+                              </Button>
+                            </div>
+                          );
+                        })}
                         <datalist id="academic-subjects">
                           {subjects.map((subject) => <option key={subject.code || subject.name} value={subject.name} />)}
                         </datalist>
@@ -949,7 +952,7 @@ export default function AcademicPage() {
                           onClick={() => setExamDates((current) => [...current, { subject_name: subjects[0]?.name || "", exam_date: "" }])}
                           leftIcon={<Plus size={15} />}
                         >
-                          Add exam
+                          Add Examination Date
                         </Button>
                       </div>
                     </div>
@@ -1006,7 +1009,7 @@ export default function AcademicPage() {
                       isLoading={generatingTT}
                       leftIcon={<Calendar size={18} />}
                     >
-                      Solve & Generate Timetable
+                      Solve &amp; Generate Timetable
                     </Button>
                   </div>
                 </CardContent>

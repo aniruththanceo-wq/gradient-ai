@@ -6,6 +6,10 @@ export type BadgeVariant =
   | "amber"
   | "danger"
   | "neutral"
+  | "teal"
+  | "indigo"
+  | "predicted"
+  | "system"
   | "year";
 
 export function Badge({
@@ -24,6 +28,10 @@ export function Badge({
     amber: "badge-amber",
     danger: "badge-danger",
     neutral: "badge-neutral",
+    teal: "badge-teal",
+    indigo: "badge-indigo",
+    predicted: "badge-predicted",
+    system: "badge-system",
     year: "badge-year",
   };
 

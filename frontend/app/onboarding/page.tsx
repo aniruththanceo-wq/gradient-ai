@@ -1,10 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState, useEffect } from "react";
 import {
   ArrowRight,
   ArrowLeft,
+  Briefcase,
   Building,
   CheckCircle2,
   GraduationCap,
@@ -23,6 +25,12 @@ import { Badge } from "@/components/ui/badge";
 import { PageTransition, GlowingCard } from "@/components/motion/motion-primitives";
 import { getProfile, saveStudentProfile, type StudentProfilePayload } from "@/services/gradient-api";
 import { useAuth } from "@/hooks/use-auth";
+
+// Dynamically load 3D Progression Constellation
+const ProgressionConstellation3D = dynamic(() => import("@/components/3d/progression-constellation-3d"), {
+  ssr: false,
+  loading: () => <div className="skeleton" style={{ width: 120, height: 80, borderRadius: "var(--radius-md)" }} />,
+});
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -73,23 +81,31 @@ export default function OnboardingPage() {
 
       <main className="section-sm" style={{ flex: 1, display: "flex", alignItems: "center" }}>
         <div className="container-narrow">
-          <div style={{ textAlign: "center", marginBottom: 32 }}>
-            <div className="eyebrow">
-              <Sparkles size={14} /> Student Profile Setup
+          {/* Header with 3D Constellation Nexus */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 20, marginBottom: 28 }}>
+            <div style={{ flex: 1, minWidth: 280 }}>
+              <div className="eyebrow">
+                <Sparkles size={14} /> Student Profile Nexus Setup
+              </div>
+              <h1 className="section-title" style={{ margin: "4px 0 8px" }}>
+                Personalize Your Workspace
+              </h1>
+              <p className="lead-text" style={{ margin: 0, fontSize: "0.95rem" }}>
+                Gradient AI unlocks analytical features and career assessments tailored to your university standing.
+              </p>
             </div>
-            <h1 className="section-title">Personalize Your Workspace</h1>
-            <p className="lead-text" style={{ margin: "0 auto", fontSize: "1rem" }}>
-              Gradient AI personalizes its analytical modules and feature access based on your academic standing.
-            </p>
+            <div style={{ width: 130, height: 90 }}>
+              <ProgressionConstellation3D height={90} currentStep={step} academicYear={form.academic_year} />
+            </div>
           </div>
 
-          {/* Progress Indicator */}
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginBottom: 28 }}>
+          {/* Progress Step Indicator */}
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginBottom: 28 }} role="progressbar" aria-valuenow={step} aria-valuemin={1} aria-valuemax={2}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div
                 style={{
-                  width: 28,
-                  height: 28,
+                  width: 30,
+                  height: 30,
                   borderRadius: "50%",
                   background: step >= 1 ? "var(--primary)" : "var(--surface-subtle)",
                   color: step >= 1 ? "#fff" : "var(--ink-tertiary)",
@@ -102,16 +118,18 @@ export default function OnboardingPage() {
               >
                 1
               </div>
-              <span style={{ fontSize: "0.85rem", fontWeight: step === 1 ? 700 : 500 }}>Institution & Identity</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: step === 1 ? 700 : 500, color: step === 1 ? "var(--ink)" : "var(--ink-tertiary)" }}>
+                Institution &amp; Identity
+              </span>
             </div>
 
-            <div style={{ width: 40, height: 2, background: step >= 2 ? "var(--primary)" : "var(--line)" }} />
+            <div style={{ width: 44, height: 2, background: step >= 2 ? "var(--primary)" : "var(--line)" }} />
 
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div
                 style={{
-                  width: 28,
-                  height: 28,
+                  width: 30,
+                  height: 30,
                   borderRadius: "50%",
                   background: step >= 2 ? "var(--primary)" : "var(--surface-subtle)",
                   color: step >= 2 ? "#fff" : "var(--ink-tertiary)",
@@ -124,7 +142,9 @@ export default function OnboardingPage() {
               >
                 2
               </div>
-              <span style={{ fontSize: "0.85rem", fontWeight: step === 2 ? 700 : 500 }}>Academic Standing</span>
+              <span style={{ fontSize: "0.85rem", fontWeight: step === 2 ? 700 : 500, color: step === 2 ? "var(--ink)" : "var(--ink-tertiary)" }}>
+                Academic Standing &amp; Access
+              </span>
             </div>
           </div>
 
@@ -160,7 +180,7 @@ export default function OnboardingPage() {
                     />
 
                     <Input
-                      label="College / Institution"
+                      label="University / College"
                       placeholder="e.g. Gradient Institute of Technology"
                       value={form.college}
                       onChange={(e) => setForm({ ...form, college: e.target.value })}
@@ -168,22 +188,32 @@ export default function OnboardingPage() {
                       required
                     />
 
-                    <Input
-                      label="Department / Program"
-                      placeholder="e.g. Computer Science & Engineering"
-                      value={form.department}
-                      onChange={(e) => setForm({ ...form, department: e.target.value })}
-                      leftIcon={<GraduationCap size={16} />}
-                      required
-                    />
+                    <div className="grid-2">
+                      <Input
+                        label="Department / Branch"
+                        placeholder="e.g. Computer Science & Engineering"
+                        value={form.department}
+                        onChange={(e) => setForm({ ...form, department: e.target.value })}
+                        leftIcon={<GraduationCap size={16} />}
+                        required
+                      />
 
-                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                      <Input
+                        label="Section / Cohort"
+                        placeholder="e.g. A"
+                        value={form.section || ""}
+                        onChange={(e) => setForm({ ...form, section: e.target.value })}
+                      />
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
                       <Button
                         type="submit"
+                        variant="primary"
+                        size="lg"
                         rightIcon={<ArrowRight size={16} />}
-                        disabled={!form.full_name.trim() || !form.college.trim()}
                       >
-                        Next Step
+                        Continue to Academic Standing
                       </Button>
                     </div>
                   </div>
@@ -191,114 +221,103 @@ export default function OnboardingPage() {
 
                 {step === 2 && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                    {/* Academic Year Selector Cards */}
                     <div>
-                      <label className="form-label" style={{ display: "block", marginBottom: 8 }}>
-                        Select Current Academic Year
+                      <label className="form-label" style={{ display: "block", marginBottom: 10 }}>
+                        Select Your Academic Year
                       </label>
-                      <div className="grid-2" style={{ gap: 12 }}>
-                        {[
-                          { year: 1, label: "Year 1 (Freshman)", desc: "Academic Intelligence, IA Trends & Timetable" },
-                          { year: 2, label: "Year 2 (Sophomore)", desc: "Academic Intelligence, CGPA Forecaster & Timetable" },
-                          { year: 3, label: "Year 3 (Junior)", desc: "Full Suite + Career Assessments & Placement Predictor" },
-                          { year: 4, label: "Year 4 (Senior)", desc: "Full Suite + Target Company Strategy & Placement Reports" },
-                        ].map((item) => {
-                          const isSelected = form.academic_year === item.year;
+                      <div className="grid-4" style={{ gap: 12 }} role="radiogroup" aria-label="Academic Year">
+                        {[1, 2, 3, 4].map((yr) => {
+                          const isSelected = form.academic_year === yr;
                           return (
                             <button
+                              key={yr}
                               type="button"
-                              key={item.year}
+                              role="radio"
+                              aria-checked={isSelected}
                               onClick={() => {
-                                const defaultSem = item.year * 2 - 1;
-                                setForm({ ...form, academic_year: item.year, semester: defaultSem });
+                                const newSemester = yr === 1 ? 2 : yr === 2 ? 4 : yr === 3 ? 6 : 8;
+                                setForm({ ...form, academic_year: yr, semester: newSemester });
                               }}
                               style={{
-                                padding: "16px",
-                                borderRadius: "var(--radius-sm)",
+                                padding: "16px 12px",
+                                borderRadius: "var(--radius-md)",
                                 border: isSelected ? "2px solid var(--primary)" : "1px solid var(--line)",
                                 background: isSelected ? "var(--primary-subtle)" : "var(--surface)",
+                                textAlign: "center",
                                 cursor: "pointer",
                                 transition: "all 140ms ease",
-                                textAlign: "left",
                               }}
-                              aria-pressed={isSelected}
                             >
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                                <span style={{ fontWeight: 700, fontSize: "0.95rem", color: isSelected ? "var(--primary)" : "var(--ink)" }}>
-                                  {item.label}
-                                </span>
-                                {item.year >= 3 ? (
-                                  <Badge variant="emerald" style={{ fontSize: "0.7rem" }}>Career Unlocked</Badge>
-                                ) : (
-                                  <Badge variant="neutral" style={{ fontSize: "0.7rem" }}>Academic Only</Badge>
-                                )}
+                              <div style={{ fontWeight: 800, fontSize: "1.2rem", color: isSelected ? "var(--primary)" : "var(--ink)" }}>
+                                Year {yr}
                               </div>
-                              <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--ink-secondary)", lineHeight: 1.4 }}>
-                                {item.desc}
-                              </p>
+                              <div style={{ fontSize: "0.74rem", color: isSelected ? "var(--primary)" : "var(--ink-tertiary)", marginTop: 4 }}>
+                                {yr < 3 ? "Academic Focus" : "Career + Academic"}
+                              </div>
                             </button>
                           );
                         })}
                       </div>
                     </div>
 
-                    <div className="grid-2">
+                    <div className="grid-2" style={{ gap: 16 }}>
                       <Select
                         label="Current Semester"
                         value={form.semester}
                         onChange={(e) => setForm({ ...form, semester: Number(e.target.value) })}
                       >
-                        {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
-                          <option key={sem} value={sem}>
-                            Semester {sem}
+                        {Array.from({ length: 8 }, (_, i) => i + 1).map((s) => (
+                          <option key={s} value={s}>
+                            Semester {s}
                           </option>
                         ))}
                       </Select>
 
-                      <Input
-                        label="Section / Division"
-                        placeholder="e.g. A"
-                        value={form.section || ""}
-                        onChange={(e) => setForm({ ...form, section: e.target.value })}
-                      />
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        <span className="form-label">Unlocked System Capabilities</span>
+                        <div style={{ padding: "10px 14px", borderRadius: "var(--radius-sm)", background: "var(--surface-subtle)", border: "1px solid var(--line)" }}>
+                          <span style={{ fontSize: "0.85rem", fontWeight: 700, color: isSeniorYear ? "var(--primary)" : "var(--teal)" }}>
+                            {isSeniorYear ? "Academic + Placement Suite Active" : "Academic Intelligence Active"}
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Feature unlock notification box */}
+                    {/* Explanatory Year Card */}
                     <div
                       style={{
-                        padding: "14px 16px",
+                        padding: "16px",
                         borderRadius: "var(--radius-sm)",
                         background: isSeniorYear ? "var(--primary-subtle)" : "var(--surface-subtle)",
                         border: `1px solid ${isSeniorYear ? "rgba(18, 99, 78, 0.25)" : "var(--line)"}`,
-                        fontSize: "0.85rem",
                         display: "flex",
-                        alignItems: "center",
-                        gap: 10,
+                        alignItems: "flex-start",
+                        gap: 12,
                       }}
                     >
                       {isSeniorYear ? (
-                        <>
-                          <Sparkles size={18} color="var(--primary)" />
-                          <span>
-                            <strong>Year {form.academic_year} Student:</strong> Full Placement Intelligence, timed assessments, company preparation, and placement PDF reports will be active on your dashboard.
-                          </span>
-                        </>
+                        <Briefcase size={22} color="var(--primary)" style={{ marginTop: 2, flexShrink: 0 }} />
                       ) : (
-                        <>
-                          <Lock size={18} color="var(--ink-tertiary)" />
-                          <span>
-                            <strong>Year {form.academic_year} Student:</strong> Your workspace will focus strictly on CGPA excellence, IA trend regression, weak-subject diagnosis, and exam timetables.
-                          </span>
-                        </>
+                        <GraduationCap size={22} color="var(--teal)" style={{ marginTop: 2, flexShrink: 0 }} />
                       )}
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: "0.92rem", color: isSeniorYear ? "var(--primary)" : "var(--ink)", marginBottom: 2 }}>
+                          {isSeniorYear ? "Year 3 & 4 Career Intelligence Unlocked" : "Year 1 & 2 Academic Intelligence Mode"}
+                        </div>
+                        <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--ink-secondary)", lineHeight: 1.5 }}>
+                          {isSeniorYear
+                            ? "Full access to Placement assessments, 6-dimension readiness radar, target company preparation hubs, and career dossiers."
+                            : "Focused on GPA maximization, internal assessment regression curves, weak-subject diagnosis, and automated exam timetable generation."}
+                        </p>
+                      </div>
                     </div>
 
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
                       <Button
                         type="button"
                         variant="secondary"
-                        leftIcon={<ArrowLeft size={16} />}
                         onClick={() => setStep(1)}
+                        leftIcon={<ArrowLeft size={16} />}
                       >
                         Back
                       </Button>
@@ -306,10 +325,11 @@ export default function OnboardingPage() {
                       <Button
                         type="submit"
                         variant="primary"
+                        size="lg"
                         isLoading={saving}
                         rightIcon={<CheckCircle2 size={16} />}
                       >
-                        Complete Onboarding & Enter Workspace
+                        Complete Onboarding &amp; Enter Workspace
                       </Button>
                     </div>
                   </div>

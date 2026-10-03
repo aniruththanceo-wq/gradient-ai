@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import dynamic from "next/dynamic";
 import { FormEvent, useEffect, useState } from "react";
 import {
   AlertCircle,
@@ -29,20 +31,6 @@ import {
   TrendingUp,
   User,
 } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  PolarAngleAxis,
-  PolarGrid,
-  PolarRadiusAxis,
-  Radar,
-  RadarChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { AppNav } from "@/components/layout/app-nav";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge, RiskBadge, PriorityBadge } from "@/components/ui/badge";
@@ -93,6 +81,17 @@ import type {
   PlacementProfile,
   Project,
 } from "@/types/api";
+
+// Dynamically load 3D visual modules
+const CareerCapabilityNetwork = dynamic(() => import("@/components/3d/career-capability-network"), {
+  ssr: false,
+  loading: () => <div className="skeleton" style={{ width: "100%", height: 180, borderRadius: "var(--radius-md)" }} />,
+});
+
+const AssessmentMatrix3D = dynamic(() => import("@/components/3d/assessment-matrix-3d"), {
+  ssr: false,
+  loading: () => <div className="skeleton" style={{ width: "100%", height: 140, borderRadius: "var(--radius-md)" }} />,
+});
 
 export default function PlacementPage() {
   const { session, loading: authLoading } = useAuth();
@@ -218,17 +217,13 @@ export default function PlacementPage() {
       setCertifications(certs);
       setCourses(crses);
 
-      // Load initial questions and coding problems
       loadQuestions("aptitude");
       loadCodingProblems();
 
-      // Load prediction if profile exists
       if (pProfile) {
         const pred = await predictPlacement().catch(() => null);
         setPrediction(pred);
       }
-
-      // Company choices are user-initiated. Do not overwrite a saved target on page load.
     } catch {
       // fallback
     }
@@ -249,7 +244,6 @@ export default function PlacementPage() {
     try {
       const probs = await listCodingProblems();
       setCodingProblems(probs);
-      // Keep submissions empty until the student writes them; prefilled answers invalidate assessment intent.
     } catch {
       // fallback
     }
@@ -285,7 +279,6 @@ export default function PlacementPage() {
     }
   }
 
-  // Add Tag Helpers
   function addLanguageTag() {
     if (!newLanguage.trim() || languages.includes(newLanguage.trim())) return;
     setLanguages([...languages, newLanguage.trim()]);
@@ -298,36 +291,27 @@ export default function PlacementPage() {
     setNewSkill("");
   }
 
-  // Submit Assessment Flow
   async function handleSubmitAssessment() {
-    if (questions.length === 0) return;
-    setSubmittingAssessment(true);
-    setErrorMessage(null);
-
-    const answers = Object.entries(userAnswers).map(([qId, ans]) => ({
-      question_id: qId,
-      selected_answer: ans,
-    }));
-
-    if (answers.length < questions.length) {
-      setErrorMessage(`Please answer all ${questions.length} questions before submitting (currently answered ${answers.length}).`);
-      setSubmittingAssessment(false);
+    if (Object.keys(userAnswers).length === 0) {
+      setErrorMessage("Please answer at least one question before submitting.");
       return;
     }
-
+    setSubmittingAssessment(true);
+    setErrorMessage(null);
     try {
-      const res = await submitAssessment({
+      const result = await submitAssessment({
         assessment_type: assessmentType,
-        time_taken_seconds: 180,
-        answers,
+        answers: Object.entries(userAnswers).map(([question_id, selected_answer]) => ({
+          question_id,
+          selected_answer,
+        })),
       });
-      setAssessmentResult(res);
-      if (assessmentType === "aptitude") setAptitudeScore(res.percentage);
-      if (assessmentType === "communication") setCommScore(res.percentage);
-
-      const pred = await predictPlacement().catch(() => null);
+      setAssessmentResult(result);
+      if (assessmentType === "aptitude") setAptitudeScore(result.percentage);
+      if (assessmentType === "communication") setCommScore(result.percentage);
+      const pred = await predictPlacement();
       setPrediction(pred);
-      setStatusMessage(`${assessmentType.toUpperCase()} Assessment completed! Score: ${res.score}/${res.max_score} (${res.percentage}%).`);
+      setStatusMessage(`${assessmentType.toUpperCase()} assessment scored: ${result.percentage}%`);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to submit assessment.");
     } finally {
@@ -335,98 +319,112 @@ export default function PlacementPage() {
     }
   }
 
-  // Submit Coding Assessment Flow
   async function handleSubmitCoding() {
-    if (codingProblems.length === 0) return;
+    const currentProb = codingProblems[activeProblemIdx];
+    if (!currentProb) return;
+    const code = submittedCodes[currentProb.id] || "";
+    if (!code.trim()) {
+      setErrorMessage("Please write code before submitting your solution.");
+      return;
+    }
     setSubmittingCoding(true);
     setErrorMessage(null);
-
-    const submissions = codingProblems.map((prob) => ({
-      problem_id: prob.id,
-      language: selectedLanguage,
-      submitted_code: submittedCodes[prob.id] || "def solution():\n    return 0",
-    }));
-
     try {
-      const res = await submitCodingAttempt({
-        time_taken_seconds: 600,
-        submissions,
+      const result = await submitCodingAttempt({
+        submissions: [
+          {
+            problem_id: currentProb.id,
+            language: selectedLanguage,
+            submitted_code: code,
+          },
+        ],
       });
-      setCodingResult(res);
-      const totalMax = codingProblems.reduce((sum, p) => sum + p.max_score, 0);
-      const percentage = Math.round((res.total_score / totalMax) * 100);
-      setCodingScore(percentage);
-
-      const pred = await predictPlacement().catch(() => null);
+      setCodingResult(result);
+      setCodingScore(result.total_score);
+      const pred = await predictPlacement();
       setPrediction(pred);
-      setStatusMessage(`Coding assessment evaluated safely via static rubric! Score: ${res.total_score}/${totalMax} (${percentage}%).`);
+      setStatusMessage(`Coding Problem ${currentProb.title} scored: ${result.total_score} pts`);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to submit coding attempt.");
+      setErrorMessage(err instanceof Error ? err.message : "Static code evaluation failed.");
     } finally {
       setSubmittingCoding(false);
     }
   }
 
-  // Change Target Company
-  async function handleCompanyChange(company: string) {
+  async function handleSelectCompany(company: string) {
     setSelectedCompany(company);
+    setErrorMessage(null);
     try {
-      const prep = await setCompanyTarget(company, targetRole);
+      const prep = await setCompanyTarget(company);
       setCompanyPrep(prep);
-    } catch {
-      // fallback
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to load company preparation roadmap.");
     }
   }
 
-  // Generate Placement PDF Report
-  async function handleCreatePlacementReport() {
+  async function handleCreateReport() {
     setGeneratingReport(true);
     setErrorMessage(null);
     try {
       const rep = await createPlacementReport();
       setGeneratedReportId(rep.id);
-      setStatusMessage("Placement Intelligence PDF report generated successfully — click Download to save.");
+      setStatusMessage("Career Intelligence Dossier compiled! Click Download PDF below.");
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to generate report.");
+      setErrorMessage(err instanceof Error ? err.message : "Failed to compile Placement report.");
     } finally {
       setGeneratingReport(false);
     }
   }
 
-  // Year 1 & 2 Security Gate Check
-  if (session?.profile && session.profile.academic_year < 3) {
+  async function handleDownloadReport() {
+    if (!generatedReportId) return;
+    setDownloadingReport(true);
+    try {
+      await downloadReportPdf(generatedReportId, "Gradient_Career_Readiness_Dossier.pdf");
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "PDF download failed.");
+    } finally {
+      setDownloadingReport(false);
+    }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="page-shell">
+        <AppNav />
+        <main className="section-sm">
+          <div className="container" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <Skeleton height={44} width={280} />
+            <Skeleton height={140} />
+            <div className="grid-3">
+              <Skeleton height={130} />
+              <Skeleton height={130} />
+              <Skeleton height={130} />
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!session?.profile || session.profile.academic_year < 3) {
     return (
       <div className="page-shell">
         <AppNav />
         <main className="section">
           <div className="container-narrow">
             <Card elevated>
-              <CardContent style={{ padding: 48, textAlign: "center" }}>
-                <div
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: "50%",
-                    background: "var(--amber-subtle)",
-                    color: "var(--amber)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    margin: "0 auto 16px",
-                  }}
-                >
-                  <Lock size={28} />
+              <CardContent style={{ padding: 40, textAlign: "center" }}>
+                <div style={{ width: 64, height: 64, borderRadius: "50%", background: "var(--surface-subtle)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                  <Lock size={30} color="var(--ink-tertiary)" />
                 </div>
-                <Badge variant="year" style={{ marginBottom: 12 }}>Year {session.profile.academic_year} Student</Badge>
-                <h1 className="section-title">Placement Intelligence Locked</h1>
-                <p className="lead-text" style={{ margin: "0 auto 28px" }}>
-                  Placement Intelligence, portfolio tracking, and Tier-1 assessments unlock in Year 3. For Year {session.profile.academic_year}, focus on building strong IA scores and maintaining a high CGPA foundation.
+                <h1 className="section-title">Career Intelligence is Locked</h1>
+                <p className="lead-text" style={{ margin: "0 auto 24px" }}>
+                  Placement Assessments, Portfolio Tracking, and Tier-1 Company Roadmaps unlock automatically for Year 3 and Year 4 students.
                 </p>
-                <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
-                  <Button variant="primary" onClick={() => (window.location.href = "/academic")}>
-                    Go to Academic Intelligence <ArrowRight size={16} />
-                  </Button>
-                </div>
+                <Link href="/dashboard" className="btn btn-primary">
+                  Return to Dashboard
+                </Link>
               </CardContent>
             </Card>
           </div>
@@ -435,82 +433,41 @@ export default function PlacementPage() {
     );
   }
 
-  // Radar chart formatted dimensions
-  const radarData = prediction?.readiness_dimensions
-    ? [
-        { subject: "Academics", A: prediction.readiness_dimensions.academics, fullMark: 100 },
-        { subject: "Aptitude", A: prediction.readiness_dimensions.aptitude, fullMark: 100 },
-        { subject: "Coding", A: prediction.readiness_dimensions.coding, fullMark: 100 },
-        { subject: "Communication", A: prediction.readiness_dimensions.communication, fullMark: 100 },
-        { subject: "Portfolio", A: prediction.readiness_dimensions.portfolio, fullMark: 100 },
-        { subject: "Skills", A: prediction.readiness_dimensions.skills, fullMark: 100 },
-      ]
-    : [];
-
   return (
     <PageTransition className="page-shell">
       <AppNav />
 
       <main className="section-sm">
         <div className="container" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          {/* Header */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+          {/* Header & Tabs */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 16 }}>
             <div>
-              <div className="eyebrow"><Briefcase size={14} /> Career Intelligence (Year 3 & 4)</div>
-              <h1 className="section-title">Placement Profile & Interview Readiness</h1>
+              <div className="eyebrow"><Briefcase size={14} /> Career &amp; Placement Suite</div>
+              <h1 className="section-title">Placement Intelligence</h1>
               <p className="lead-text" style={{ margin: 0, fontSize: "0.95rem" }}>
-                Evaluate placement probability, take timed assessments, manage resume artifacts, and prepare for target companies.
+                6-dimension readiness radar, verified portfolio artifacts, timed assessments, and Tier-1 interview roadmaps.
               </p>
             </div>
 
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCreatePlacementReport}
-                isLoading={generatingReport}
-                leftIcon={<FileText size={15} />}
-              >
-                Generate Placement Report
-              </Button>
-              {generatedReportId && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  isLoading={downloadingReport}
-                  leftIcon={<Download size={15} />}
-                  onClick={async () => {
-                    setDownloadingReport(true);
-                    try {
-                      await downloadReportPdf(generatedReportId, "placement-intelligence-report.pdf");
-                    } catch (e) {
-                      setErrorMessage(e instanceof Error ? e.message : "PDF download failed.");
-                    } finally {
-                      setDownloadingReport(false);
-                    }
-                  }}
-                >
-                  Download PDF
-                </Button>
-              )}
-            </div>
+            <Tabs
+              activeTab={activeTab}
+              onChange={(t) => setActiveTab(t as any)}
+              tabs={[
+                { id: "profile", label: "01 Profile", icon: <User size={15} /> },
+                { id: "portfolio", label: "02 Portfolio", icon: <Layers size={15} /> },
+                { id: "assessments", label: "03 Assessments", icon: <Code2 size={15} /> },
+                { id: "prediction", label: "04 Readiness", icon: <Target size={15} /> },
+                { id: "companies", label: "05 Company Prep", icon: <Building size={15} /> },
+              ]}
+            />
           </div>
 
-          {/* Navigation Tabs */}
-          <Tabs
-            tabs={[
-              { id: "profile", label: "1. Placement Profile", icon: <User size={16} /> },
-              { id: "portfolio", label: "2. Portfolio Artifacts", icon: <Layers size={16} />, badge: projects.length + internships.length },
-              { id: "assessments", label: "3. Timed Assessments", icon: <Target size={16} /> },
-              { id: "prediction", label: "4. Readiness Radar & ML Prognosis", icon: <Sparkles size={16} /> },
-              { id: "companies", label: "5. Target Company Strategy", icon: <Building size={16} /> },
-            ]}
-            activeTab={activeTab}
-            onChange={(tab) => setActiveTab(tab as any)}
-          />
-
-          {/* Feedback Alerts */}
-          {statusMessage && <StatusMessage kind="success">{statusMessage}</StatusMessage>}
+          {/* Feedback Messages */}
+          {statusMessage && (
+            <StatusMessage kind="success">
+              <CheckCircle2 size={16} style={{ flexShrink: 0 }} /> {statusMessage}
+            </StatusMessage>
+          )}
           {errorMessage && <StatusMessage kind="error">{errorMessage}</StatusMessage>}
 
           {/* TAB 1: PLACEMENT PROFILE */}
@@ -518,16 +475,16 @@ export default function PlacementPage() {
             <form onSubmit={handleSaveProfile} style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               <Card elevated>
                 <CardHeader>
-                  <CardTitle>Academic & Target Role Parameters</CardTitle>
+                  <CardTitle>Academic &amp; Skill Profile</CardTitle>
                   <CardDescription>
-                    Core metrics utilized in placement probability classification and LPA package regression
+                    Explicit distinction between user-entered academic standing and assessment-calibrated scores.
                   </CardDescription>
                 </CardHeader>
 
                 <CardContent>
-                  <div className="grid-4" style={{ marginBottom: 18 }}>
+                  <div className="grid-4" style={{ marginBottom: 20 }}>
                     <Input
-                      label="Current CGPA"
+                      label="Current CGPA (/10)"
                       type="number"
                       step="0.01"
                       min={0}
@@ -536,29 +493,26 @@ export default function PlacementPage() {
                       onChange={(e) => setCgpa(Number(e.target.value))}
                       required
                     />
-
                     <Input
-                      label="10th Percentage"
+                      label="10th Marks (%)"
                       type="number"
                       step="0.1"
-                      min={35}
+                      min={0}
                       max={100}
                       value={tenth}
                       onChange={(e) => setTenth(Number(e.target.value))}
                       required
                     />
-
                     <Input
-                      label="12th Percentage"
+                      label="12th Marks (%)"
                       type="number"
                       step="0.1"
-                      min={35}
+                      min={0}
                       max={100}
                       value={twelfth}
                       onChange={(e) => setTwelfth(Number(e.target.value))}
                       required
                     />
-
                     <Input
                       label="Active Backlogs"
                       type="number"
@@ -570,53 +524,46 @@ export default function PlacementPage() {
                     />
                   </div>
 
-                  <div className="grid-2" style={{ gap: 20 }}>
+                  <div className="grid-3" style={{ marginBottom: 20 }}>
                     <Input
                       label="Target Role"
-                      placeholder="e.g. Full Stack Engineer / Systems Engineer"
                       value={targetRole}
                       onChange={(e) => setTargetRole(e.target.value)}
+                      placeholder="e.g. SDE-1 / ML Engineer"
                       required
                     />
-
                     <Select
                       label="DSA Preparation Level"
                       value={dsaPrep}
                       onChange={(e) => setDsaPrep(e.target.value)}
                     >
-                      <option value="beginner">Beginner (Arrays, Strings, Basic Search)</option>
-                      <option value="intermediate">Intermediate (Trees, Graphs, DP, Heaps)</option>
-                      <option value="advanced">Advanced (Hard Graph, Segment Trees, Trie)</option>
+                      <option value="beginner">Beginner (&lt; 50 LeetCode)</option>
+                      <option value="intermediate">Intermediate (50–200 LeetCode)</option>
+                      <option value="advanced">Advanced (200+ LeetCode)</option>
                     </Select>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <span className="form-label">Calibrated Assessment Scores</span>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <span className="badge badge-emerald">Apt: {aptitudeScore}%</span>
+                        <span className="badge badge-teal">Code: {codingScore}%</span>
+                        <span className="badge badge-indigo">Comm: {commScore}%</span>
+                      </div>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
 
-              {/* Skills & Programming Languages Manager */}
-              <Card elevated>
-                <CardHeader>
-                  <CardTitle>Languages & Technical Skills</CardTitle>
-                  <CardDescription>Add role-relevant technologies to strengthen your portfolio index</CardDescription>
-                </CardHeader>
-
-                <CardContent style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                  {/* Programming Languages */}
-                  <div>
+                  {/* Programming Languages Tags */}
+                  <div style={{ marginBottom: 18 }}>
                     <label className="form-label" style={{ display: "block", marginBottom: 6 }}>
                       Programming Languages
                     </label>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 8 }}>
                       {languages.map((lang) => (
-                        <span
-                          key={lang}
-                          className="badge badge-emerald"
-                          style={{ fontSize: "0.85rem", padding: "5px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}
-                        >
+                        <span key={lang} className="badge badge-emerald" style={{ padding: "5px 10px", fontSize: "0.82rem" }}>
                           {lang}
                           <button
                             type="button"
                             onClick={() => setLanguages(languages.filter((l) => l !== lang))}
-                            style={{ border: "none", background: "transparent", cursor: "pointer", color: "inherit", padding: 0 }}
+                            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", marginLeft: 4 }}
                           >
                             &times;
                           </button>
@@ -624,11 +571,13 @@ export default function PlacementPage() {
                       ))}
                     </div>
                     <div style={{ display: "flex", gap: 8, maxWidth: 360 }}>
-                      <Input
-                        placeholder="e.g. Go, Java, C++"
+                      <input
+                        className="form-input"
+                        placeholder="Add language (e.g. Go, Java)"
                         value={newLanguage}
                         onChange={(e) => setNewLanguage(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLanguageTag(); } }}
+                        style={{ padding: "6px 10px", fontSize: "0.85rem" }}
                       />
                       <Button type="button" variant="secondary" size="sm" onClick={addLanguageTag}>
                         Add
@@ -636,23 +585,19 @@ export default function PlacementPage() {
                     </div>
                   </div>
 
-                  {/* Technical Skills */}
+                  {/* Technical Skills Tags */}
                   <div>
                     <label className="form-label" style={{ display: "block", marginBottom: 6 }}>
-                      Technical Frameworks & Tools
+                      Core Technical Skills &amp; Frameworks
                     </label>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-                      {skills.map((skill) => (
-                        <span
-                          key={skill}
-                          className="badge badge-neutral"
-                          style={{ fontSize: "0.85rem", padding: "5px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}
-                        >
-                          {skill}
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 8 }}>
+                      {skills.map((sk) => (
+                        <span key={sk} className="badge badge-teal" style={{ padding: "5px 10px", fontSize: "0.82rem" }}>
+                          {sk}
                           <button
                             type="button"
-                            onClick={() => setSkills(skills.filter((s) => s !== skill))}
-                            style={{ border: "none", background: "transparent", cursor: "pointer", color: "inherit", padding: 0 }}
+                            onClick={() => setSkills(skills.filter((s) => s !== sk))}
+                            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", marginLeft: 4 }}
                           >
                             &times;
                           </button>
@@ -660,11 +605,13 @@ export default function PlacementPage() {
                       ))}
                     </div>
                     <div style={{ display: "flex", gap: 8, maxWidth: 360 }}>
-                      <Input
-                        placeholder="e.g. Docker, Redis, Kubernetes"
+                      <input
+                        className="form-input"
+                        placeholder="Add skill (e.g. Docker, Redis)"
                         value={newSkill}
                         onChange={(e) => setNewSkill(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSkillTag(); } }}
+                        style={{ padding: "6px 10px", fontSize: "0.85rem" }}
                       />
                       <Button type="button" variant="secondary" size="sm" onClick={addSkillTag}>
                         Add
@@ -672,9 +619,9 @@ export default function PlacementPage() {
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
-                    <Button type="submit" variant="primary" size="lg" isLoading={savingProfile} rightIcon={<Sparkles size={18} />}>
-                      Save Profile & Recalculate Placement ML
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 24 }}>
+                    <Button type="submit" variant="primary" size="lg" isLoading={savingProfile}>
+                      Save Placement Profile &amp; Recalculate Readiness
                     </Button>
                   </div>
                 </CardContent>
@@ -682,16 +629,16 @@ export default function PlacementPage() {
             </form>
           )}
 
-          {/* TAB 2: PORTFOLIO MANAGER (PROJECTS, INTERNSHIPS, CERTS, COURSES) */}
+          {/* TAB 2: PORTFOLIO ENTITIES (PROJECTS, INTERNSHIPS, CERTS, COURSES) */}
           {activeTab === "portfolio" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-              {/* Projects Section */}
-              <Card>
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              {/* Projects Card */}
+              <Card elevated>
                 <CardHeader>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
-                      <CardTitle>Engineering Projects ({projects.length})</CardTitle>
-                      <CardDescription>Substantial projects with public code repositories or live demos</CardDescription>
+                      <CardTitle>Technical Projects ({projects.length})</CardTitle>
+                      <CardDescription>Major software engineering and algorithmic projects</CardDescription>
                     </div>
                     <Button variant="secondary" size="sm" onClick={() => setModalType("project")} leftIcon={<Plus size={15} />}>
                       Add Project
@@ -701,29 +648,30 @@ export default function PlacementPage() {
                 <CardContent>
                   {projects.length === 0 ? (
                     <EmptyState
+                      icon={<Code2 size={28} color="var(--primary)" />}
                       title="No Projects Added"
-                      description="Add your key academic and open-source projects to boost your portfolio readiness."
-                      action={<Button size="sm" onClick={() => setModalType("project")}>Add First Project</Button>}
+                      description="Add your full-stack apps, ML pipelines, or systems projects to boost your Portfolio capability score."
+                      action={<Button variant="secondary" size="sm" onClick={() => setModalType("project")}>Add First Project</Button>}
                     />
                   ) : (
                     <div className="grid-2">
-                      {projects.map((proj, idx) => (
-                        <div key={idx} className="gradient-card card-pad" style={{ background: "var(--surface-subtle)" }}>
+                      {projects.map((proj, i) => (
+                        <div key={i} className="gradient-card card-pad" style={{ background: "var(--surface)", border: "1px solid var(--line)" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                            <h4 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>{proj.title}</h4>
+                            <h3 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>{proj.title}</h3>
                             <Badge variant="emerald">{proj.status}</Badge>
                           </div>
-                          <p style={{ fontSize: "0.85rem", color: "var(--ink-secondary)", margin: "0 0 10px", lineHeight: 1.5 }}>
+                          <p style={{ margin: "0 0 10px", fontSize: "0.85rem", color: "var(--ink-secondary)", lineHeight: 1.5 }}>
                             {proj.description}
                           </p>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                             {proj.technologies?.map((tech) => (
                               <span key={tech} className="badge badge-neutral" style={{ fontSize: "0.72rem" }}>{tech}</span>
                             ))}
                           </div>
                           {proj.link && (
-                            <a href={proj.link} target="_blank" rel="noreferrer" style={{ fontSize: "0.8rem", color: "var(--primary)", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                              View Live / Code <ExternalLink size={12} />
+                            <a href={proj.link} target="_blank" rel="noreferrer" style={{ fontSize: "0.8rem", color: "var(--primary)", display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
+                              View Repository <ExternalLink size={12} />
                             </a>
                           )}
                         </div>
@@ -733,13 +681,13 @@ export default function PlacementPage() {
                 </CardContent>
               </Card>
 
-              {/* Internships Section */}
-              <Card>
+              {/* Internships Card */}
+              <Card elevated>
                 <CardHeader>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
-                      <CardTitle>Industry Internships ({internships.length})</CardTitle>
-                      <CardDescription>Professional work experience and verified internship engagements</CardDescription>
+                      <CardTitle>Work Experience &amp; Internships ({internships.length})</CardTitle>
+                      <CardDescription>Industry engineering roles, responsibilities, and delivered outcomes</CardDescription>
                     </div>
                     <Button variant="secondary" size="sm" onClick={() => setModalType("internship")} leftIcon={<Plus size={15} />}>
                       Add Internship
@@ -749,27 +697,27 @@ export default function PlacementPage() {
                 <CardContent>
                   {internships.length === 0 ? (
                     <EmptyState
+                      icon={<Briefcase size={28} color="var(--teal)" />}
                       title="No Internships Recorded"
-                      description="Document your practical internship experience and quantifiable outcomes."
-                      action={<Button size="sm" onClick={() => setModalType("internship")}>Add Internship</Button>}
+                      description="Document your summer internships or research assistantships to establish industry readiness."
+                      action={<Button variant="secondary" size="sm" onClick={() => setModalType("internship")}>Add Internship</Button>}
                     />
                   ) : (
                     <div className="grid-2">
-                      {internships.map((intern, idx) => (
-                        <div key={idx} className="gradient-card card-pad" style={{ background: "var(--surface-subtle)" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-                            <h4 style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}>{intern.role}</h4>
-                            <Badge variant="year">{intern.duration}</Badge>
+                      {internships.map((intern, i) => (
+                        <div key={i} className="gradient-card card-pad" style={{ background: "var(--surface)", border: "1px solid var(--line)" }}>
+                          <div style={{ fontWeight: 700, fontSize: "1.05rem", color: "var(--ink)" }}>{intern.role}</div>
+                          <div style={{ fontSize: "0.82rem", color: "var(--primary)", fontWeight: 600, marginBottom: 8 }}>
+                            {intern.organization} &bull; {intern.duration}
                           </div>
-                          <div style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--primary)", marginBottom: 8 }}>
-                            {intern.organization}
-                          </div>
-                          <p style={{ fontSize: "0.85rem", color: "var(--ink-secondary)", margin: "0 0 8px", lineHeight: 1.5 }}>
+                          <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "var(--ink-secondary)", lineHeight: 1.5 }}>
                             {intern.responsibilities}
                           </p>
-                          <div style={{ fontSize: "0.8rem", color: "var(--success)", fontWeight: 600 }}>
-                            Impact: {intern.outcomes}
-                          </div>
+                          {intern.outcomes && (
+                            <div style={{ fontSize: "0.8rem", color: "var(--success)", fontWeight: 600 }}>
+                              Impact: {intern.outcomes}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -777,7 +725,7 @@ export default function PlacementPage() {
                 </CardContent>
               </Card>
 
-              {/* Certifications & Courses Grid */}
+              {/* Certifications & Courses Row */}
               <div className="grid-2">
                 <Card>
                   <CardHeader>
@@ -790,13 +738,13 @@ export default function PlacementPage() {
                   </CardHeader>
                   <CardContent>
                     {certifications.length === 0 ? (
-                      <p style={{ fontSize: "0.85rem", color: "var(--ink-tertiary)", margin: 0 }}>No certifications added yet.</p>
+                      <p style={{ fontSize: "0.85rem", color: "var(--ink-tertiary)", margin: 0 }}>No certifications recorded.</p>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        {certifications.map((c, i) => (
+                        {certifications.map((cert, i) => (
                           <div key={i} style={{ padding: "10px 12px", background: "var(--surface-subtle)", borderRadius: "var(--radius-sm)", border: "1px solid var(--line)" }}>
-                            <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{c.name}</div>
-                            <div style={{ fontSize: "0.78rem", color: "var(--ink-secondary)" }}>{c.provider} &bull; {c.category}</div>
+                            <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{cert.name}</div>
+                            <div style={{ fontSize: "0.78rem", color: "var(--ink-secondary)" }}>{cert.provider} &bull; {cert.category}</div>
                           </div>
                         ))}
                       </div>
@@ -835,29 +783,54 @@ export default function PlacementPage() {
           {/* TAB 3: TIMED ASSESSMENTS (APTITUDE, CODING, COMMUNICATION) */}
           {activeTab === "assessments" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-              {/* Assessment Type Picker */}
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <Button
-                  variant={assessmentType === "aptitude" ? "primary" : "secondary"}
-                  onClick={() => { setAssessmentType("aptitude"); loadQuestions("aptitude"); }}
-                  leftIcon={<Target size={16} />}
-                >
-                  Aptitude Assessment (20 Qs)
-                </Button>
-                <Button
-                  variant={assessmentType === "coding" ? "primary" : "secondary"}
-                  onClick={() => { setAssessmentType("coding"); loadCodingProblems(); }}
-                  leftIcon={<Code2 size={16} />}
-                >
-                  Coding Assessment (3 Problems &bull; 30m)
-                </Button>
-                <Button
-                  variant={assessmentType === "communication" ? "primary" : "secondary"}
-                  onClick={() => { setAssessmentType("communication"); loadQuestions("communication"); }}
-                  leftIcon={<MessageSquare size={16} />}
-                >
-                  Communication Assessment (15 Qs)
-                </Button>
+              {/* Assessment Header with 3D State Matrix */}
+              <div className="gradient-card card-pad" style={{ background: "var(--surface)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 20, flex: 1, minWidth: 280 }}>
+                  <div style={{ width: 120, height: 80 }}>
+                    <AssessmentMatrix3D
+                      height={80}
+                      assessmentType={assessmentType}
+                      progressPercentage={
+                        questions.length > 0
+                          ? Math.round((Object.keys(userAnswers).length / questions.length) * 100)
+                          : 0
+                      }
+                    />
+                  </div>
+                  <div>
+                    <div className="eyebrow"><Sparkles size={13} /> Diagnostic Evaluation Center</div>
+                    <h2 style={{ margin: "0 0 4px", fontSize: "1.3rem", fontWeight: 800 }}>
+                      Skill &amp; Competency Assessment Hub
+                    </h2>
+                    <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--ink-secondary)" }}>
+                      Take standardized assessments across Cognitive Aptitude, Static Code Review, and Professional Communication.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <Button
+                    variant={assessmentType === "aptitude" ? "primary" : "secondary"}
+                    onClick={() => { setAssessmentType("aptitude"); loadQuestions("aptitude"); }}
+                    leftIcon={<Target size={15} />}
+                  >
+                    Aptitude (20 Qs)
+                  </Button>
+                  <Button
+                    variant={assessmentType === "coding" ? "primary" : "secondary"}
+                    onClick={() => { setAssessmentType("coding"); loadCodingProblems(); }}
+                    leftIcon={<Code2 size={15} />}
+                  >
+                    Coding (3 Problems)
+                  </Button>
+                  <Button
+                    variant={assessmentType === "communication" ? "primary" : "secondary"}
+                    onClick={() => { setAssessmentType("communication"); loadQuestions("communication"); }}
+                    leftIcon={<MessageSquare size={15} />}
+                  >
+                    Communication (15 Qs)
+                  </Button>
+                </div>
               </div>
 
               {/* Assessment Sub-Runner: Aptitude / Communication MCQ */}
@@ -867,12 +840,12 @@ export default function PlacementPage() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
                       <div>
                         <CardTitle>
-                          {assessmentType === "aptitude" ? "Aptitude Evaluation" : "Communication & Verbal Evaluation"}
+                          {assessmentType === "aptitude" ? "Cognitive Aptitude Evaluation" : "Communication & Verbal Reasoning"}
                         </CardTitle>
                         <CardDescription>
                           {assessmentType === "aptitude"
                             ? "20 questions covering Quantitative, Logical Reasoning, Verbal, and Data Interpretation"
-                            : "15 questions covering Grammar, Vocabulary, Sentence Correction, and Business Communication"}
+                            : "15 questions covering Grammar, Vocabulary, Sentence Correction, and Business Articulation"}
                         </CardDescription>
                       </div>
                       <Badge variant="emerald">
@@ -990,7 +963,7 @@ export default function PlacementPage() {
                   >
                     <ShieldAlert size={18} color="var(--primary)" />
                     <span>
-                      <strong>Safe Static Evaluation:</strong> Gradient AI uses safe static code rubric analysis (verifying return paths, loops, time complexity, and data structures) without executing arbitrary code on the server.
+                      <strong>Safe Static Evaluation:</strong> Gradient AI analyzes AST syntax, control flow, return statements, and loop structures statically without executing arbitrary code on the server.
                     </span>
                   </div>
 
@@ -1029,7 +1002,7 @@ export default function PlacementPage() {
                       {codingProblems[activeProblemIdx] && (
                         <Card>
                           <CardHeader>
-                            <CardTitle style={{ fontSize: "1rem" }}>Problem Details</CardTitle>
+                            <CardTitle style={{ fontSize: "1rem" }}>Problem Specification</CardTitle>
                           </CardHeader>
                           <CardContent>
                             <p style={{ margin: "0 0 12px", fontSize: "0.88rem", color: "var(--ink)", lineHeight: 1.6 }}>
@@ -1126,6 +1099,39 @@ export default function PlacementPage() {
                 />
               ) : (
                 <>
+                  {/* Top 3D Capability Network Banner */}
+                  <div className="gradient-card card-pad" style={{ background: "var(--surface)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 20, flex: 1, minWidth: 280 }}>
+                      <div style={{ width: 140, height: 100 }}>
+                        <CareerCapabilityNetwork
+                          height={100}
+                          readinessScore={prediction.readiness_score}
+                          dimensions={prediction.readiness_dimensions}
+                        />
+                      </div>
+                      <div>
+                        <div className="eyebrow"><Sparkles size={13} /> 6-Axis Capability Analysis</div>
+                        <h2 style={{ margin: "0 0 4px", fontSize: "1.3rem", fontWeight: 800 }}>
+                          Placement Readiness &amp; Probability Forecast
+                        </h2>
+                        <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--ink-secondary)" }}>
+                          Weighted ML inference comparing your profile against historical Tier-1 hiring baselines.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <Button variant="primary" size="sm" onClick={handleCreateReport} isLoading={generatingReport} leftIcon={<FileText size={14} />}>
+                        Compile Dossier
+                      </Button>
+                      {generatedReportId && (
+                        <Button variant="outline" size="sm" onClick={handleDownloadReport} isLoading={downloadingReport} leftIcon={<Download size={14} />}>
+                          Download PDF
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Top Forecast KPI Highlights with Animated Counters */}
                   <div className="grid-3">
                     <GlowingCard className="card-pad">
@@ -1146,7 +1152,7 @@ export default function PlacementPage() {
                     <GlowingCard className="card-pad">
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                         <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-tertiary)", textTransform: "uppercase" }}>
-                          Expected Package (LPA)
+                          Expected Package Range
                         </span>
                         <TrendingUp size={20} color="var(--teal)" />
                       </div>
@@ -1248,73 +1254,59 @@ export default function PlacementPage() {
                   <Button
                     key={comp}
                     variant={selectedCompany === comp ? "primary" : "secondary"}
-                    onClick={() => handleCompanyChange(comp)}
+                    onClick={() => handleSelectCompany(comp)}
                     leftIcon={<Building size={16} />}
                   >
-                    {comp} Strategy
+                    {comp}
                   </Button>
                 ))}
               </div>
 
               {companyPrep && (
-                <div className="grid-2">
-                  <Card elevated>
-                    <CardHeader>
-                      <CardTitle>{companyPrep.company_name} Preparation Benchmark</CardTitle>
-                      <CardDescription>{companyPrep.source_label} &bull; Updated {companyPrep.source_date}</CardDescription>
-                    </CardHeader>
-                    <CardContent style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                      <div style={{ fontSize: "0.88rem", fontWeight: 700, color: "var(--ink)" }}>
-                        Critical Focus Areas for {companyPrep.company_name}
+                <Card elevated>
+                  <CardHeader>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <CardTitle>{companyPrep.company_name} Target Preparation Hub</CardTitle>
+                        <CardDescription>Source: {companyPrep.source_label} &bull; Updated: {companyPrep.source_date}</CardDescription>
                       </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        {companyPrep.focus_areas.map((area, aIdx) => (
-                          <div key={aIdx} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "0.9rem" }}>
-                            <CheckCircle2 size={16} color="var(--primary)" /> {area}
-                          </div>
+                      <Badge variant="year">{selectedCompany}</Badge>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                    {/* Focus Areas */}
+                    <div>
+                      <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--ink)", marginBottom: 10 }}>
+                        Core Technical Focus Areas:
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: 18, fontSize: "0.88rem", color: "var(--ink-secondary)", lineHeight: 1.6 }}>
+                        {companyPrep.focus_areas.map((fa, fIdx) => (
+                          <li key={fIdx}>{fa}</li>
                         ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </ul>
+                    </div>
 
-                  <Card elevated>
-                    <CardHeader>
-                      <CardTitle>Your Personalized Roadmap for {companyPrep.company_name}</CardTitle>
-                      <CardDescription>Tailored milestones based on your current assessment scores</CardDescription>
-                    </CardHeader>
-                    <CardContent style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                      <div style={{ padding: "12px 14px", borderRadius: "var(--radius-sm)", background: "var(--surface-subtle)", border: "1px solid var(--line)" }}>
-                        <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--primary)" }}>Phase 1: DSA Speed & Patterns</div>
-                        <div style={{ fontSize: "0.8rem", color: "var(--ink-secondary)", marginTop: 2 }}>
-                          Complete 40 medium problems focusing on Graph Traversal, Trees, and Dynamic Programming.
-                        </div>
+                    {/* Recommended Preparation Roadmap */}
+                    <div style={{ padding: "16px", borderRadius: "var(--radius-sm)", background: "var(--surface-subtle)", border: "1px solid var(--line)" }}>
+                      <div style={{ fontWeight: 700, fontSize: "0.92rem", marginBottom: 8, color: "var(--ink)" }}>
+                        Strategic Target Recommendation:
                       </div>
-
-                      <div style={{ padding: "12px 14px", borderRadius: "var(--radius-sm)", background: "var(--surface-subtle)", border: "1px solid var(--line)" }}>
-                        <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--teal)" }}>Phase 2: System Fundamentals & Portfolio</div>
-                        <div style={{ fontSize: "0.8rem", color: "var(--ink-secondary)", marginTop: 2 }}>
-                          Review OS concurrency, indexing in relational databases, and architect a distributed capstone project.
-                        </div>
-                      </div>
-
-                      <div style={{ padding: "12px 14px", borderRadius: "var(--radius-sm)", background: "var(--surface-subtle)", border: "1px solid var(--line)" }}>
-                        <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--amber)" }}>Phase 3: Mock Behavioral & Technical Interviews</div>
-                        <div style={{ fontSize: "0.8rem", color: "var(--ink-secondary)", marginTop: 2 }}>
-                          Frame project stories using the STAR methodology and take timed communication assessments.
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+                      <p style={{ margin: 0, fontSize: "0.88rem", color: "var(--ink-secondary)", lineHeight: 1.6 }}>
+                        Focus preparation on core algorithmic patterns, system architecture fundamentals, and clean coding practices tailored to {companyPrep.company_name}.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
             </div>
           )}
         </div>
       </main>
 
-      {/* Portfolio Modals */}
+      {/* Progressive Disclosure Modals for Portfolio Entities */}
       {modalType === "project" && (
-        <Modal isOpen={true} onClose={() => setModalType(null)} title="Add Engineering Project">
+        <Modal isOpen={true} onClose={() => setModalType(null)} title="Add Technical Project">
           <form
             onSubmit={async (e) => {
               e.preventDefault();
@@ -1326,10 +1318,9 @@ export default function PlacementPage() {
             style={{ display: "flex", flexDirection: "column", gap: 14 }}
           >
             <Input label="Project Title" value={projectForm.title} onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })} required />
-            <Textarea label="Description" value={projectForm.description} onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })} required />
-            <Input label="Role" value={projectForm.role} onChange={(e) => setProjectForm({ ...projectForm, role: e.target.value })} required />
-            <Input label="Technologies (comma separated)" placeholder="React, FastAPI, PostgreSQL" onChange={(e) => setProjectForm({ ...projectForm, technologies: e.target.value.split(",").map(t => t.trim()).filter(Boolean) })} />
-            <Input label="Repository / Demo URL" value={projectForm.link || ""} onChange={(e) => setProjectForm({ ...projectForm, link: e.target.value })} />
+            <Textarea label="Description & Outcomes" value={projectForm.description} onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })} required />
+            <Input label="Technologies (comma-separated)" value={projectForm.technologies.join(", ")} onChange={(e) => setProjectForm({ ...projectForm, technologies: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} required />
+            <Input label="Repository or Demo URL" type="url" value={projectForm.link || ""} onChange={(e) => setProjectForm({ ...projectForm, link: e.target.value })} />
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
               <Button type="button" variant="secondary" onClick={() => setModalType(null)}>Cancel</Button>
               <Button type="submit" variant="primary">Save Project</Button>
@@ -1350,11 +1341,11 @@ export default function PlacementPage() {
             }}
             style={{ display: "flex", flexDirection: "column", gap: 14 }}
           >
-            <Input label="Company / Organization" value={internshipForm.organization} onChange={(e) => setInternshipForm({ ...internshipForm, organization: e.target.value })} required />
+            <Input label="Organization / Company" value={internshipForm.organization} onChange={(e) => setInternshipForm({ ...internshipForm, organization: e.target.value })} required />
             <Input label="Role" value={internshipForm.role} onChange={(e) => setInternshipForm({ ...internshipForm, role: e.target.value })} required />
-            <Input label="Duration" placeholder="e.g. 3 months" value={internshipForm.duration} onChange={(e) => setInternshipForm({ ...internshipForm, duration: e.target.value })} required />
+            <Input label="Duration" value={internshipForm.duration} onChange={(e) => setInternshipForm({ ...internshipForm, duration: e.target.value })} placeholder="e.g. 3 months" required />
             <Textarea label="Key Responsibilities" value={internshipForm.responsibilities} onChange={(e) => setInternshipForm({ ...internshipForm, responsibilities: e.target.value })} required />
-            <Textarea label="Quantifiable Outcomes" value={internshipForm.outcomes} onChange={(e) => setInternshipForm({ ...internshipForm, outcomes: e.target.value })} required />
+            <Input label="Delivered Impact / Outcomes" value={internshipForm.outcomes || ""} onChange={(e) => setInternshipForm({ ...internshipForm, outcomes: e.target.value })} />
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
               <Button type="button" variant="secondary" onClick={() => setModalType(null)}>Cancel</Button>
               <Button type="submit" variant="primary">Save Internship</Button>
@@ -1378,7 +1369,7 @@ export default function PlacementPage() {
             <Input label="Certification Name" value={certForm.name} onChange={(e) => setCertForm({ ...certForm, name: e.target.value })} required />
             <Input label="Issuing Organization" value={certForm.provider} onChange={(e) => setCertForm({ ...certForm, provider: e.target.value })} required />
             <Input label="Category" value={certForm.category} onChange={(e) => setCertForm({ ...certForm, category: e.target.value })} required />
-            <Input label="Credential URL" value={certForm.credential_url || ""} onChange={(e) => setCertForm({ ...certForm, credential_url: e.target.value })} />
+            <Input label="Credential ID" value={certForm.credential_id || ""} onChange={(e) => setCertForm({ ...certForm, credential_id: e.target.value })} />
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
               <Button type="button" variant="secondary" onClick={() => setModalType(null)}>Cancel</Button>
               <Button type="submit" variant="primary">Save Certification</Button>
