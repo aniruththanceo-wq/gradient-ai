@@ -228,9 +228,7 @@ export default function PlacementPage() {
         setPrediction(pred);
       }
 
-      // Load target company
-      const prep = await setCompanyTarget("Google", "Software Engineer").catch(() => null);
-      setCompanyPrep(prep);
+      // Company choices are user-initiated. Do not overwrite a saved target on page load.
     } catch {
       // fallback
     }
@@ -251,11 +249,7 @@ export default function PlacementPage() {
     try {
       const probs = await listCodingProblems();
       setCodingProblems(probs);
-      if (probs.length > 0 && Object.keys(submittedCodes).length === 0) {
-        setSubmittedCodes({
-          [probs[0].id]: `def two_sum(nums, target):\n    # Write your solution here\n    seen = {}\n    for i, num in enumerate(nums):\n        complement = target - num\n        if complement in seen:\n            return [seen[complement], i]\n        seen[num] = i\n    return []`,
-        });
-      }
+      // Keep submissions empty until the student writes them; prefilled answers invalidate assessment intent.
     } catch {
       // fallback
     }
@@ -1157,10 +1151,10 @@ export default function PlacementPage() {
                         <TrendingUp size={20} color="var(--teal)" />
                       </div>
                       <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--ink)" }}>
-                        {prediction.expected_lpa} <span style={{ fontSize: "0.9rem", color: "var(--ink-tertiary)" }}>LPA</span>
+                        {prediction.package_range_low}–{prediction.package_range_high} <span style={{ fontSize: "0.9rem", color: "var(--ink-tertiary)" }}>LPA</span>
                       </div>
                       <div style={{ fontSize: "0.78rem", color: "var(--ink-secondary)", marginTop: 4 }}>
-                        Prototype Ridge Regressor
+                        Prototype estimated package range; not a salary guarantee
                       </div>
                     </GlowingCard>
 

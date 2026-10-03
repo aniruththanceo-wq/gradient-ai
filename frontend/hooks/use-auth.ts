@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiFetch, getStoredToken, setStoredToken } from "@/lib/api";
+import { ApiError, apiFetch, setStoredToken } from "@/lib/api";
 import type { AuthSession } from "@/types/api";
 
 export function useAuth() {
@@ -32,7 +32,8 @@ export function useAuth() {
         }
       })
       .catch((err: Error) => {
-        if (active) setError(err.message);
+        // An anonymous first visit is expected; only surface actionable failures.
+        if (active && (!(err instanceof ApiError) || err.status !== 401)) setError(err.message);
       })
       .finally(() => {
         if (active) setLoading(false);

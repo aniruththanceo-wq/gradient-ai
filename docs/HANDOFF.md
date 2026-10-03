@@ -34,7 +34,7 @@ The platform strictly enforces year-based feature accessibility across both fron
 - **Framework**: FastAPI (Python 3.12+)
 - **ORM & Database**: SQLAlchemy 2.0 with SQLite (development fallback) and PostgreSQL support.
 - **PDF Engine**: ReportLab 4.4 / 5.0 compiling verified A4 documents to `reports/generated/`.
-- **Authentication**: Google OAuth verification (`POST /api/v1/auth/google`) + Development Persona mode (`POST /api/v1/auth/dev-login`).
+- **Authentication**: Google OAuth verification (`POST /api/v1/auth/google`). Development Persona mode (`POST /api/v1/auth/dev-login`) is disabled by the backend in production and its UI is opt-in through `NEXT_PUBLIC_ENABLE_DEMO=true`.
 
 ### C. Machine Learning Pipeline (`ml/`)
 - **Trained Artifacts** in `ml/models/`:
@@ -68,3 +68,9 @@ Application available at: `http://localhost:3000`
 - **Backend Tests**: `backend\.venv\Scripts\pytest backend/tests -v`
 - **Frontend Tests**: `cd frontend && npm run test`
 - **Frontend Build**: `cd frontend && npm run build`
+
+## 5. Current Production Notes
+- Render must use `backend/Dockerfile` with the repository root as Docker build context so `/app/ml/models` contains all four artifacts. Set `MODEL_DIR=/app/ml/models` in the backend service.
+- Package output is a bounded prototype advisory range of ₹4–₹120 LPA driven by all six readiness dimensions. It must never be described as a salary guarantee.
+- Coding review validates Python syntax, required function structure, and static implementation signals. It intentionally does not execute submitted code.
+- Timetable exam entries are dynamic and user-editable. The API rejects duplicate subject/date pairs and dates in the past.

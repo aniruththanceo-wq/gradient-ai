@@ -216,6 +216,8 @@ export type PlacementPredictionResult = {
   placement_probability: number;
   predicted_status: string;
   expected_lpa: number;
+  package_range_low: number;
+  package_range_high: number;
   readiness_score: number;
   readiness_dimensions: {
     academics: number;

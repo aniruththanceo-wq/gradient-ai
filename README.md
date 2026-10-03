@@ -75,10 +75,9 @@ Deploy a managed PostgreSQL database using **Neon**, **Supabase**, **Render Post
    ```
 
 ### B. Backend Deployment (FastAPI on Render / Railway / Fly.io)
-1. **Repository Link**: Connect your repository to Render/Railway.
-2. **Root Directory**: `backend`
-3. **Build Command**: `pip install -r requirements.txt`
-4. **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+1. **Repository Link**: Connect the repository to Render.
+2. **Runtime**: Docker. Use `backend/Dockerfile` with the **repository root** as the build context; the image copies both `backend/` and `ml/models/`.
+3. **Do not set `backend` as Render's build context**: doing so excludes the production ML artifacts.
 5. **Environment Variables**:
    | Variable | Value Description | Example |
    | :--- | :--- | :--- |
@@ -90,7 +89,7 @@ Deploy a managed PostgreSQL database using **Neon**, **Supabase**, **Render Post
    | `GOOGLE_CLIENT_ID` | Google OAuth Web Client ID | `*.apps.googleusercontent.com` |
    | `GOOGLE_CLIENT_SECRET` | Google OAuth Web Client Secret | `GOCSPX-...` |
    | `AUTO_CREATE_TABLES` | Auto-seed reference data on boot | `true` |
-   | `MODEL_DIR` | Relative path to ML artifacts | `../ml/models` |
+   | `MODEL_DIR` | Container path to ML artifacts | `/app/ml/models` |
    | `SESSION_COOKIE_SAMESITE`| Cross-site cookie policy | `none` (if frontend & backend on different domains) |
 
 ### C. Frontend Deployment (Next.js on Vercel)
@@ -136,3 +135,6 @@ npm run build
 - The included ML models (`academic_cgpa.joblib`, `academic_risk.joblib`, `placement_classifier.joblib`, `package_regressor.joblib`) were trained on controlled synthetic prototype distributions for development and integration benchmarking.
 - Gradient AI never promises or guarantees salary packages or placement outcomes.
 - Coding assessment submissions are analyzed safely using static rubric inspection without unsafe server-side execution.
+- The package result is a bounded, readiness-derived prototype range (₹4–₹120 LPA); it is not a salary guarantee. The included package artifact remains a prototype health check, while the displayed estimate is deliberately constrained by all six readiness dimensions.
+- The landing simulator is an interactive demonstration formula, not a live model-inference result.
+- Set `NEXT_PUBLIC_ENABLE_DEMO=true` only for local development. Production uses Google sign-in and keeps `/auth/dev-login` disabled.

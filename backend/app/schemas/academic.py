@@ -26,6 +26,13 @@ class SubjectInput(BaseModel):
     attendance_percentage: float | None = Field(default=None, ge=0, le=100)
     ia_marks: list[IAMarkInput] = Field(min_length=1, max_length=20)
 
+    @model_validator(mode="after")
+    def assessment_indexes_must_be_unique(self):
+        indexes = [mark.assessment_index for mark in self.ia_marks]
+        if len(indexes) != len(set(indexes)):
+            raise ValueError("assessment_index values must be unique within a subject")
+        return self
+
 
 class AcademicRecordCreate(BaseModel):
     semester: int = Field(ge=1, le=8)
@@ -41,6 +48,13 @@ class AcademicRecordCreate(BaseModel):
     revision_frequency: str = Field(max_length=40)
     study_method: str = Field(max_length=120)
     subjects: list[SubjectInput] = Field(min_length=1, max_length=16)
+
+    @model_validator(mode="after")
+    def subjects_must_have_unique_codes(self):
+        codes = [subject.code.strip().lower() for subject in self.subjects if subject.code and subject.code.strip()]
+        if len(codes) != len(set(codes)):
+            raise ValueError("subject codes must be unique when supplied")
+        return self
 
 
 class IAMarkRead(BaseModel):
@@ -86,6 +100,7 @@ class AcademicPredictionRead(BaseModel):
 
 class ExamDateInput(BaseModel):
     subject_name: str = Field(min_length=2, max_length=160)
+    subject_code: str | None = Field(default=None, max_length=40)
     exam_date: date
 
 
@@ -96,6 +111,16 @@ class TimetableRequest(BaseModel):
     preferred_start_time: str = Field(default="18:00", pattern=r"^\d{2}:\d{2}$")
     block_minutes: int = Field(default=60, ge=30, le=120)
     include_weekends: bool = True
+
+    @model_validator(mode="after")
+    def exam_entries_must_be_unique(self):
+        entries = [
+            (exam.subject_name.strip().lower(), exam.exam_date.isoformat())
+            for exam in self.exam_dates
+        ]
+        if len(entries) != len(set(entries)):
+            raise ValueError("duplicate subject and exam-date entries are not allowed")
+        return self
 
 
 class TimetableItemRead(BaseModel):

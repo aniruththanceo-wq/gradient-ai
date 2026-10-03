@@ -129,11 +129,7 @@ export default function AcademicPage() {
   const [timetable, setTimetable] = useState<TimetableResult | null>(null);
 
   // Timetable Generator Form State
-  const [examDates, setExamDates] = useState<{ subject_name: string; exam_date: string }[]>([
-    { subject_name: "Discrete Mathematics", exam_date: "2026-10-15" },
-    { subject_name: "Data Structures & Algorithms", exam_date: "2026-10-20" },
-    { subject_name: "Computer Organization", exam_date: "2026-10-24" },
-  ]);
+  const [examDates, setExamDates] = useState<{ subject_name: string; exam_date: string }[]>([]);
   const [availableDailyHours, setAvailableDailyHours] = useState(4);
   const [preferredStartTime, setPreferredStartTime] = useState("09:00");
   const [blockDuration, setBlockDuration] = useState(60);
@@ -251,6 +247,10 @@ export default function AcademicPage() {
     try {
       const result = await saveAcademicRecord(payload);
       setActiveRecordId(result.id);
+      setExamDates((current) => current.length ? current : payload.subjects.map((subject) => ({
+        subject_name: subject.name,
+        exam_date: "",
+      })));
       setStatusMessage("Academic record saved successfully. Processing regression analysis and ML forecast...");
 
       const ana = await getAcademicAnalysis(result.id);
@@ -273,6 +273,10 @@ export default function AcademicPage() {
   async function handleGenerateTimetable() {
     if (!activeRecordId) {
       setErrorMessage("Please save your academic records before generating a timetable.");
+      return;
+    }
+    if (examDates.length === 0 || examDates.some((exam) => !exam.subject_name.trim() || !exam.exam_date)) {
+      setErrorMessage("Add a subject and a valid exam date for every timetable entry.");
       return;
     }
 
@@ -906,20 +910,47 @@ export default function AcademicPage() {
                               border: "1px solid var(--line)",
                             }}
                           >
-                            <span style={{ flex: 1, fontWeight: 600, fontSize: "0.9rem" }}>{ed.subject_name}</span>
+                            <input
+                              aria-label={`Exam subject ${i + 1}`}
+                              className="form-input"
+                              list="academic-subjects"
+                              value={ed.subject_name}
+                              onChange={(e) => setExamDates((current) => current.map((exam, index) => index === i ? { ...exam, subject_name: e.target.value } : exam))}
+                              placeholder="Subject name"
+                              style={{ flex: 1, minWidth: 140, padding: "6px 10px", fontSize: "0.85rem" }}
+                            />
                             <input
                               type="date"
+                              aria-label={`Exam date for ${ed.subject_name || `entry ${i + 1}`}`}
                               className="form-input"
                               value={ed.exam_date}
-                              onChange={(e) => {
-                                const updated = [...examDates];
-                                updated[i].exam_date = e.target.value;
-                                setExamDates(updated);
-                              }}
+                              min={new Date().toISOString().slice(0, 10)}
+                              onChange={(e) => setExamDates((current) => current.map((exam, index) => index === i ? { ...exam, exam_date: e.target.value } : exam))}
                               style={{ width: 160, padding: "6px 10px", fontSize: "0.85rem" }}
                             />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Remove ${ed.subject_name || "exam"}`}
+                              onClick={() => setExamDates((current) => current.filter((_, index) => index !== i))}
+                            >
+                              <Trash2 size={15} />
+                            </Button>
                           </div>
                         ))}
+                        <datalist id="academic-subjects">
+                          {subjects.map((subject) => <option key={subject.code || subject.name} value={subject.name} />)}
+                        </datalist>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setExamDates((current) => [...current, { subject_name: subjects[0]?.name || "", exam_date: "" }])}
+                          leftIcon={<Plus size={15} />}
+                        >
+                          Add exam
+                        </Button>
                       </div>
                     </div>
 

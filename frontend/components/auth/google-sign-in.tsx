@@ -13,6 +13,7 @@ export function GoogleSignIn({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loadingPersona, setLoadingPersona] = useState<string | null>(null);
+  const demoEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO === "true";
 
   function initialize() {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -69,8 +70,8 @@ export function GoogleSignIn({ compact = false }: { compact?: boolean }) {
       />
       <div ref={buttonRef} />
 
-      {/* Development Persona Quick-Logins */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {/* Explicit opt-in only: dev-login is deliberately unavailable in production. */}
+      {demoEnabled && <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <div
           style={{
             fontSize: "0.78rem",
@@ -109,7 +110,7 @@ export function GoogleSignIn({ compact = false }: { compact?: boolean }) {
         <div style={{ fontSize: "0.75rem", color: "var(--ink-tertiary)", lineHeight: 1.5 }}>
           Instant demo — no account required. For production use, sign in with your institutional Google account above.
         </div>
-      </div>
+      </div>}
 
       {error && (
         <p

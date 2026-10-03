@@ -27,6 +27,7 @@ export function AppNav() {
   const [features, setFeatures] = useState<FeatureAccess | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [personaOpen, setPersonaOpen] = useState(false);
+  const demoEnabled = process.env.NEXT_PUBLIC_ENABLE_DEMO === "true";
   const personaRef = useRef<HTMLDivElement>(null);
 
   // Close persona dropdown on outside click
@@ -126,8 +127,8 @@ export function AppNav() {
 
         {/* Right Action / Profile Menu */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {/* Quick Dev Persona Switcher */}
-          <div style={{ position: "relative" }} ref={personaRef}>
+          {/* Development-only persona switcher. Production never calls dev-login. */}
+          {demoEnabled && <div style={{ position: "relative" }} ref={personaRef}>
             <button
               onClick={() => setPersonaOpen(!personaOpen)}
               className="btn btn-secondary btn-sm"
@@ -209,7 +210,7 @@ export function AppNav() {
                 ))}
               </div>
             )}
-          </div>
+          </div>}
 
           {/* User Profile / Logout */}
           {session ? (

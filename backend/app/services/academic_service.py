@@ -155,8 +155,10 @@ def generate_timetable(db: Session, user: UserLike, payload: TimetableRequest) -
     analysis = analyze_record(record)
     subject_priority = {subject["subject"]: subject["weakness_score"] for subject in analysis["subjects"]}
     exams = sorted(payload.exam_dates, key=lambda item: item.exam_date)
-    latest_exam = exams[-1].exam_date
     start_date = datetime.now(UTC).date()
+    if any(exam.exam_date < start_date for exam in exams):
+        raise HTTPException(status_code=422, detail="Exam dates cannot be in the past")
+    latest_exam = exams[-1].exam_date
     study_days = []
     cursor = start_date
     while cursor <= latest_exam:
@@ -176,7 +178,9 @@ def generate_timetable(db: Session, user: UserLike, payload: TimetableRequest) -
         ranked = sorted(
             eligible,
             key=lambda exam: (
-                -subject_priority.get(exam.subject_name, 40),
+                # A weak subject rises first, but the urgency of a close exam can
+                # still move a healthy subject ahead of a distant one.
+                -(subject_priority.get(exam.subject_name, 40) + max(0, 30 - (exam.exam_date - study_date).days)),
                 (exam.exam_date - study_date).days,
             ),
         )
@@ -215,4 +219,3 @@ def generate_timetable(db: Session, user: UserLike, payload: TimetableRequest) -
         "strategy_notes": timetable.strategy_notes,
         "items": items,
     }
-

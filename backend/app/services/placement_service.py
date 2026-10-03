@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import ast
+import re
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -183,7 +186,10 @@ def submit_coding_attempt(db: Session, user: UserLike, payload: CodingAttemptSub
     total_score = 0.0
     for submission in payload.submissions:
         problem = by_id[submission.problem_id]
-        score, review_notes = safe_static_code_score(problem, submission.submitted_code)
+        if submission.language.lower() not in {"python", "python3", "python 3"}:
+            score, review_notes = 0.0, ["Rejected: safe structural validation currently supports Python 3 only."]
+        else:
+            score, review_notes = safe_static_code_score(problem, submission.submitted_code)
         total_score += score
         notes.extend([f"{problem.title}: {note}" for note in review_notes])
         db.add(
@@ -213,20 +219,46 @@ def submit_coding_attempt(db: Session, user: UserLike, payload: CodingAttemptSub
 
 
 def safe_static_code_score(problem: CodingProblem, code: str) -> tuple[float, list[str]]:
-    lowered = code.lower()
-    notes = ["Submission was not executed; Gradient AI v1 uses safe static review only."]
-    score = problem.max_score * 0.25
-    if "return" in lowered:
+    required_functions = {
+        "Array Sum & Target Pair": "two_sum",
+        "First Unique Character & Frequency Map": "first_unique_char",
+        "Course Schedule & Dependency Feasibility": "can_finish",
+    }
+    stripped = code.strip()
+    if not stripped or len(re.sub(r"#.*", "", stripped).strip()) < 10:
+        return 0.0, ["Rejected: submit a complete implementation, not blank text or comments only."]
+    if len(re.findall(r"\b(?:the|and|this|that|because)\b", stripped.lower())) >= 4:
+        return 0.0, ["Rejected: the submission appears to be prose rather than source code."]
+
+    try:
+        tree = ast.parse(stripped)
+    except SyntaxError as exc:
+        return 0.0, [f"Rejected: Python syntax error on line {exc.lineno}."]
+
+    expected_function = required_functions.get(problem.title)
+    functions = {node.name: node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    if expected_function and expected_function not in functions:
+        return 0.0, [f"Rejected: define the required `{expected_function}` function for this problem."]
+
+    target = functions.get(expected_function) if expected_function else next(iter(functions.values()), None)
+    if target is None or not target.body or all(isinstance(node, ast.Pass) for node in target.body):
+        return 0.0, ["Rejected: the required function has no executable implementation."]
+
+    lowered = stripped.lower()
+    notes = ["Submission passed Python syntax and structural validation. It was not executed; production uses safe static review only."]
+    score = problem.max_score * 0.35
+    if any(isinstance(node, ast.Return) for node in ast.walk(target)):
         score += problem.max_score * 0.2
         notes.append("Contains a return path.")
-    if any(token in lowered for token in ["for ", "while ", ".map", "reduce"]):
+    if any(isinstance(node, (ast.For, ast.While, ast.ListComp, ast.DictComp)) for node in ast.walk(target)):
         score += problem.max_score * 0.2
-        notes.append("Contains iteration or collection processing.")
-    if any(token in lowered for token in ["dict", "map", "set", "graph", "queue", "stack", "visited"]):
-        score += problem.max_score * 0.2
-        notes.append("Uses a relevant data-structure signal.")
-    if len(code.strip()) > 120:
+        notes.append("Contains iterative or collection-processing logic.")
+    relevant_tokens = ["dict", "set", "visited", "queue", "deque", "indegree", "graph", "defaultdict", "counter"]
+    if any(token in lowered for token in relevant_tokens):
         score += problem.max_score * 0.15
+        notes.append("Uses a relevant data-structure or graph-processing signal.")
+    if len(target.body) >= 3:
+        score += problem.max_score * 0.1
         notes.append("Provides a non-trivial implementation body.")
     return round(min(problem.max_score, score), 2), notes
 
@@ -262,14 +294,14 @@ def predict_placement(db: Session, user: UserLike) -> dict:
     features = placement_feature_snapshot(db, user.id, profile)
     try:
         probability, placement_artifact = predict_probability("placement_classifier.joblib", features)
-        expected_lpa_raw, package_artifact = predict_artifact("package_regressor.joblib", features)
+        _, package_artifact = predict_artifact("package_regressor.joblib", features)
     except ModelArtifactMissingError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
 
     probability = round(max(0.0, min(1.0, probability)), 4)
-    expected_lpa = round(max(0.0, float(expected_lpa_raw)), 2)
     dimensions = readiness_dimensions(features)
-    readiness_score = round(sum(dimensions.values()) / len(dimensions), 2)
+    readiness_score = placement_readiness_score(dimensions)
+    expected_lpa, package_low, package_high = prototype_package_range(dimensions)
     stage = {
         "Aptitude": readiness_label(features["aptitude_score"]),
         "Coding": readiness_label(features["coding_score"]),
@@ -306,6 +338,8 @@ def predict_placement(db: Session, user: UserLike) -> dict:
         "placement_probability": probability,
         "predicted_status": predicted_status,
         "expected_lpa": expected_lpa,
+        "package_range_low": package_low,
+        "package_range_high": package_high,
         "readiness_score": readiness_score,
         "readiness_dimensions": dimensions,
         "interview_stage_readiness": stage,
@@ -314,6 +348,33 @@ def predict_placement(db: Session, user: UserLike) -> dict:
         "supporting_factors": supporting,
         "model_version": placement_artifact.get("version", "unknown"),
     }
+
+
+def placement_readiness_score(dimensions: dict[str, float]) -> float:
+    """Combine all six dimensions so no single strength conceals broad weakness."""
+    weights = {
+        "academics": 0.15,
+        "aptitude": 0.15,
+        "coding": 0.25,
+        "communication": 0.10,
+        "portfolio": 0.20,
+        "skills": 0.15,
+    }
+    weighted = sum(dimensions[key] * weights[key] for key in weights)
+    minimum = min(dimensions.values())
+    # The harmonic mean makes multiple weak dimensions materially visible.
+    harmonic = len(dimensions) / sum(1 / max(value, 1) for value in dimensions.values())
+    return round(max(0.0, min(100.0, 0.60 * weighted + 0.25 * harmonic + 0.15 * minimum)), 2)
+
+
+def prototype_package_range(dimensions: dict[str, float]) -> tuple[float, float, float]:
+    """Return a bounded advisory range; it is deliberately not a salary guarantee."""
+    readiness = placement_readiness_score(dimensions)
+    expected = 4.0 + 116.0 * (readiness / 100.0) ** 3
+    uncertainty = max(1.0, expected * (0.10 + (100.0 - readiness) / 600.0))
+    low = max(4.0, expected - uncertainty)
+    high = min(120.0, expected + uncertainty)
+    return round(expected, 2), round(low, 2), round(high, 2)
 
 
 def readiness_dimensions(features: dict) -> dict:
@@ -399,4 +460,3 @@ def set_company_target(db: Session, user: UserLike, payload: CompanyTargetCreate
         "source_label": preparation.source_label,
         "source_date": preparation.source_date,
     }
-

@@ -152,6 +152,8 @@ class PlacementPredictionRead(BaseModel):
     placement_probability: float
     predicted_status: str
     expected_lpa: float
+    package_range_low: float
+    package_range_high: float
     readiness_score: float
     readiness_dimensions: dict
     interview_stage_readiness: dict
@@ -159,4 +161,3 @@ class PlacementPredictionRead(BaseModel):
     recommendations: list[str]
     supporting_factors: list[str]
     model_version: str
-
