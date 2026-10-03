@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
@@ -14,7 +14,8 @@ export function Textarea({
   id,
   ...props
 }: TextareaProps) {
-  const textareaId = id || (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
+  const generatedId = useId();
+  const textareaId = id || (label ? `${label.toLowerCase().replace(/\s+/g, "-")}-${generatedId}` : undefined);
 
   return (
     <div className="form-group">

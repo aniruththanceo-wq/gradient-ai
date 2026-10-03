@@ -90,11 +90,16 @@ export default function AcademicHealthOrb({
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
 
-    let frameId: number;
+    let frameId: number | undefined;
+    let isVisible = true;
+    let disposed = false;
     const startedAt = performance.now();
 
     const animate = () => {
-      frameId = requestAnimationFrame(animate);
+      if (disposed || !isVisible || document.hidden) {
+        frameId = undefined;
+        return;
+      }
       const elapsed = (performance.now() - startedAt) / 1000;
       if (!reducedMotion) {
         orb.rotation.y = elapsed * 0.4;
@@ -106,12 +111,36 @@ export default function AcademicHealthOrb({
       }
 
       renderer.render(scene, camera);
+      frameId = requestAnimationFrame(animate);
     };
 
-    animate();
+    const stopRendering = () => {
+      if (frameId !== undefined) cancelAnimationFrame(frameId);
+      frameId = undefined;
+    };
+    const startRendering = () => {
+      if (disposed || !isVisible || document.hidden) return;
+      if (reducedMotion) renderer.render(scene, camera);
+      else if (frameId === undefined) frameId = requestAnimationFrame(animate);
+    };
+    const observer = new IntersectionObserver(([entry]) => {
+      isVisible = entry.isIntersecting;
+      if (isVisible) startRendering();
+      else stopRendering();
+    });
+    const handleVisibilityChange = () => {
+      if (document.hidden) stopRendering();
+      else startRendering();
+    };
+    observer.observe(container);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    startRendering();
 
     return () => {
-      cancelAnimationFrame(frameId);
+      disposed = true;
+      stopRendering();
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (renderer.domElement && container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }

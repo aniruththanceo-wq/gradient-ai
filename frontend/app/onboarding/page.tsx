@@ -205,7 +205,8 @@ export default function OnboardingPage() {
                         ].map((item) => {
                           const isSelected = form.academic_year === item.year;
                           return (
-                            <div
+                            <button
+                              type="button"
                               key={item.year}
                               onClick={() => {
                                 const defaultSem = item.year * 2 - 1;
@@ -218,7 +219,9 @@ export default function OnboardingPage() {
                                 background: isSelected ? "var(--primary-subtle)" : "var(--surface)",
                                 cursor: "pointer",
                                 transition: "all 140ms ease",
+                                textAlign: "left",
                               }}
+                              aria-pressed={isSelected}
                             >
                               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                                 <span style={{ fontWeight: 700, fontSize: "0.95rem", color: isSelected ? "var(--primary)" : "var(--ink)" }}>
@@ -233,7 +236,7 @@ export default function OnboardingPage() {
                               <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--ink-secondary)", lineHeight: 1.4 }}>
                                 {item.desc}
                               </p>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>

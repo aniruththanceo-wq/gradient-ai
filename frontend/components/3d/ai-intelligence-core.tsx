@@ -170,12 +170,11 @@ export default function AIIntelligenceCore({
       container.addEventListener("pointermove", handlePointerMove);
     }
 
-    // 8. Visibility / Performance Observer
+    // Render only while this visual can actually be seen. This avoids a hidden
+    // landing-page canvas retaining a GPU/CPU frame loop after the user scrolls.
     let isVisible = true;
-    const observer = new IntersectionObserver(([entry]) => {
-      isVisible = entry.isIntersecting;
-    });
-    observer.observe(container);
+    let animationFrameId: number | undefined;
+    let disposed = false;
 
     // 9. Resize Handling
     const handleResize = () => {
@@ -188,14 +187,13 @@ export default function AIIntelligenceCore({
     };
     window.addEventListener("resize", handleResize);
 
-    // 10. Animation Loop
-    let animationFrameId: number;
     const startedAt = performance.now();
 
     const animate = () => {
-      animationFrameId = requestAnimationFrame(animate);
-
-      if (!isVisible) return;
+      if (disposed || !isVisible || document.hidden) {
+        animationFrameId = undefined;
+        return;
+      }
 
       const elapsedTime = (performance.now() - startedAt) / 1000;
 
@@ -226,15 +224,42 @@ export default function AIIntelligenceCore({
       camera.lookAt(0, 0, 0);
 
       renderer.render(scene, camera);
+      animationFrameId = requestAnimationFrame(animate);
     };
 
-    animate();
+    const renderStill = () => renderer.render(scene, camera);
+    const startRendering = () => {
+      if (disposed || !isVisible || document.hidden) return;
+      if (reducedMotion) {
+        renderStill();
+      } else if (animationFrameId === undefined) {
+        animationFrameId = requestAnimationFrame(animate);
+      }
+    };
+    const stopRendering = () => {
+      if (animationFrameId !== undefined) cancelAnimationFrame(animationFrameId);
+      animationFrameId = undefined;
+    };
+    const observer = new IntersectionObserver(([entry]) => {
+      isVisible = entry.isIntersecting;
+      if (isVisible) startRendering();
+      else stopRendering();
+    });
+    const handleVisibilityChange = () => {
+      if (document.hidden) stopRendering();
+      else startRendering();
+    };
+    observer.observe(container);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    startRendering();
 
     // 11. Cleanup
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      disposed = true;
+      stopRendering();
       observer.disconnect();
       window.removeEventListener("resize", handleResize);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (interactive) {
         container.removeEventListener("pointermove", handlePointerMove);
       }

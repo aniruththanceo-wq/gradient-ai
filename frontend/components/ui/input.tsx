@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -16,7 +16,8 @@ export function Input({
   id,
   ...props
 }: InputProps) {
-  const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
+  const generatedId = useId();
+  const inputId = id || (label ? `${label.toLowerCase().replace(/\s+/g, "-")}-${generatedId}` : undefined);
 
   return (
     <div className="form-group">

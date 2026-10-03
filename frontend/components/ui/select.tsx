@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 
 export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
@@ -17,7 +17,8 @@ export function Select({
   id,
   ...props
 }: SelectProps) {
-  const selectId = id || (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
+  const generatedId = useId();
+  const selectId = id || (label ? `${label.toLowerCase().replace(/\s+/g, "-")}-${generatedId}` : undefined);
 
   return (
     <div className="form-group">

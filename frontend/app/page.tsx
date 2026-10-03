@@ -228,7 +228,7 @@ export default function HomePage() {
                 </div>
 
                 <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--line-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.82rem", color: "var(--ink-secondary)" }}>
-                  <span>Trained Scikit-Learn Model Inference</span>
+                  <span>Interactive prediction demonstration</span>
                   <Link href="/dashboard" style={{ color: "var(--primary)", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}>
                     Open Full Analysis <ChevronRight size={14} />
                   </Link>
@@ -317,7 +317,7 @@ export default function HomePage() {
                 {
                   step: "03",
                   title: "ML Predictive Forecasting",
-                  text: "Executes model inference for expected CGPA, academic risk category, placement probability, and expected package LPA.",
+                  text: "Uses prototype model signals for CGPA, academic risk, and placement-readiness guidance. Package output is a bounded advisory range, not a guarantee.",
                   icon: <Cpu size={20} />,
                 },
                 {
