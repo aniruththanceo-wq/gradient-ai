@@ -47,6 +47,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PlacementRadar } from "@/components/charts/placement-radar";
 import { PageTransition, GlowingCard, AnimatedCounter } from "@/components/motion/motion-primitives";
+import { emitSpatialEvent } from "@/lib/spatial-events";
 import { useAuth } from "@/hooks/use-auth";
 import { downloadReportPdf } from "@/lib/api";
 import {
@@ -271,6 +272,7 @@ export default function PlacementPage() {
       await savePlacementProfile(payload);
       const pred = await predictPlacement();
       setPrediction(pred);
+      emitSpatialEvent({ type: "energy-pulse", intensity: 0.8, color: "#38bdf8" });
       setStatusMessage("Placement profile saved. Placement readiness & expected package updated.");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to save placement profile.");
@@ -311,6 +313,7 @@ export default function PlacementPage() {
       if (assessmentType === "communication") setCommScore(result.percentage);
       const pred = await predictPlacement();
       setPrediction(pred);
+      emitSpatialEvent({ type: "energy-pulse", intensity: 0.85, color: "#10b981" });
       setStatusMessage(`${assessmentType.toUpperCase()} assessment scored: ${result.percentage}%`);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to submit assessment.");
@@ -343,6 +346,7 @@ export default function PlacementPage() {
       setCodingScore(result.total_score);
       const pred = await predictPlacement();
       setPrediction(pred);
+      emitSpatialEvent({ type: "energy-pulse", intensity: 0.9, color: "#34d399" });
       setStatusMessage(`Coding Problem ${currentProb.title} scored: ${result.total_score} pts`);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Static code evaluation failed.");
@@ -357,6 +361,7 @@ export default function PlacementPage() {
     try {
       const prep = await setCompanyTarget(company);
       setCompanyPrep(prep);
+      emitSpatialEvent({ type: "energy-pulse", intensity: 0.6, color: "#38bdf8" });
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to load company preparation roadmap.");
     }

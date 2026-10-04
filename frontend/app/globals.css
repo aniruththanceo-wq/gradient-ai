@@ -535,6 +535,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-1-2, .grid-2-1 { grid-template-columns: 1fr; }
+  .hud-right-meter, .hud-bottom-left, .hud-bottom-right { display: none !important; }
 }
 
 @media (max-width: 680px) {
@@ -546,4 +547,123 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .mobile-menu-btn { display: flex !important; }
   .card-pad { padding: 16px; }
   .card-pad-lg { padding: 20px; }
+  .system-hud-layer { display: none !important; }
 }
+
+/* =========================================================================
+   HIGH-TECH ANIME & SYSTEM INTERFACE STYLING
+   ========================================================================= */
+
+/* Reticle Corner Brackets */
+.hud-corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  border-color: rgba(18, 99, 78, 0.4);
+  border-style: solid;
+}
+
+.hud-corner-tl {
+  top: 14px;
+  left: 14px;
+  border-width: 2px 0 0 2px;
+}
+
+.hud-corner-tr {
+  top: 14px;
+  right: 14px;
+  border-width: 2px 2px 0 0;
+}
+
+.hud-corner-bl {
+  bottom: 14px;
+  left: 14px;
+  border-width: 0 0 2px 2px;
+}
+
+.hud-corner-br {
+  bottom: 14px;
+  right: 14px;
+  border-width: 0 2px 2px 0;
+}
+
+.hud-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 8px var(--primary);
+  display: inline-block;
+  animation: hudPulse 2s infinite ease-in-out;
+}
+
+@keyframes hudPulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.15); box-shadow: 0 0 12px var(--primary); }
+}
+
+/* Solo Leveling / MHA-Inspired System Window Card */
+.system-window {
+  position: relative;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.system-window::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 2px;
+  background: var(--primary);
+}
+
+.system-window:hover {
+  border-color: var(--primary);
+  box-shadow: 0 8px 24px rgba(18, 99, 78, 0.12);
+  transform: translateY(-2px);
+}
+
+/* System Monospace Telemetry Chip */
+.system-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-radius: var(--radius-xs);
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  color: var(--ink-secondary);
+}
+
+/* High-Tech Section Tag */
+.sector-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(18, 99, 78, 0.08);
+  border: 1px solid rgba(18, 99, 78, 0.25);
+  color: var(--primary);
+  border-radius: var(--radius-xs);
+  margin-bottom: 8px;
+}
+

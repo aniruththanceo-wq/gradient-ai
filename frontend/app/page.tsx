@@ -44,6 +44,7 @@ import {
   MotionSection,
   PageTransition,
 } from "@/components/motion/motion-primitives";
+import { emitSpatialEvent } from "@/lib/spatial-events";
 
 // Dynamically load 3D AI Intelligence Core with SSR: false
 const AIIntelligenceCore = dynamic(() => import("@/components/3d/ai-intelligence-core"), {
@@ -76,6 +77,20 @@ export default function HomePage() {
       ? "Moderate Risk"
       : "Low Risk";
   const riskVariant = riskLabel === "Low Risk" ? "emerald" : riskLabel === "Moderate Risk" ? "amber" : "danger";
+
+  const handleIAChange = (val: number) => {
+    setDemoIA(val);
+    const color = val < 50 ? "#b8332c" : val < 65 ? "#c07817" : "#10b981";
+    emitSpatialEvent({ type: "energy-pulse", intensity: 0.5, color });
+    emitSpatialEvent({ type: "risk-shift", color });
+  };
+
+  const handleAttendanceChange = (val: number) => {
+    setDemoAttendance(val);
+    const color = val < 70 ? "#b8332c" : val < 75 ? "#c07817" : "#10b981";
+    emitSpatialEvent({ type: "energy-pulse", intensity: 0.5, color });
+    emitSpatialEvent({ type: "risk-shift", color });
+  };
 
   return (
     <PageTransition className="page-shell">
@@ -190,7 +205,7 @@ export default function HomePage() {
                       min={35}
                       max={100}
                       value={demoIA}
-                      onChange={(e) => setDemoIA(Number(e.target.value))}
+                      onChange={(e) => handleIAChange(Number(e.target.value))}
                       aria-label="Average Internal Assessment"
                       style={{ width: "100%", accentColor: "var(--primary)", cursor: "pointer" }}
                     />
@@ -206,7 +221,7 @@ export default function HomePage() {
                       min={40}
                       max={100}
                       value={demoAttendance}
-                      onChange={(e) => setDemoAttendance(Number(e.target.value))}
+                      onChange={(e) => handleAttendanceChange(Number(e.target.value))}
                       aria-label="Attendance Compliance"
                       style={{ width: "100%", accentColor: "var(--primary)", cursor: "pointer" }}
                     />
@@ -247,10 +262,10 @@ export default function HomePage() {
         </section>
 
         {/* SECTION 1: WHAT GRADIENT AI UNDERSTANDS (TELEMETRY) */}
-        <MotionSection id="telemetry" className="section" style={{ background: "var(--surface)", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
+        <MotionSection id="telemetry" className="section" style={{ background: "rgba(255, 255, 255, 0.72)", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
           <div className="container">
             <div style={{ textAlign: "center", maxWidth: 740, margin: "0 auto 48px" }}>
-              <div className="eyebrow"><Network size={14} /> Multi-Dimensional Telemetry</div>
+              <div className="sector-badge">[ SECTOR 01 // TELEMETRY STREAM ]</div>
               <h2 className="section-title">What Gradient AI Understands About Your University Journey</h2>
               <p className="lead-text" style={{ margin: "0 auto" }}>
                 Universities collect grades, but rarely interpret them. Gradient AI converts isolated test scores and attendance records into a continuous intelligence stream.
@@ -259,7 +274,7 @@ export default function HomePage() {
 
             <div className="grid-3">
               <GlowingCard delay={1}>
-                <div className="card-pad">
+                <div className="card-pad" onMouseEnter={() => emitSpatialEvent({ type: "energy-pulse", intensity: 0.4 })}>
                   <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--primary-subtle)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
                     <LineChartIcon size={22} />
                   </div>
@@ -271,7 +286,7 @@ export default function HomePage() {
               </GlowingCard>
 
               <GlowingCard delay={2}>
-                <div className="card-pad">
+                <div className="card-pad" onMouseEnter={() => emitSpatialEvent({ type: "energy-pulse", intensity: 0.4 })}>
                   <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--teal-subtle)", color: "var(--teal)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
                     <Activity size={22} />
                   </div>
@@ -283,7 +298,7 @@ export default function HomePage() {
               </GlowingCard>
 
               <GlowingCard delay={3}>
-                <div className="card-pad">
+                <div className="card-pad" onMouseEnter={() => emitSpatialEvent({ type: "energy-pulse", intensity: 0.4 })}>
                   <div style={{ width: 44, height: 44, borderRadius: 10, background: "var(--amber-subtle)", color: "var(--amber)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
                     <Target size={22} />
                   </div>
@@ -301,7 +316,7 @@ export default function HomePage() {
         <MotionSection id="academic" className="section">
           <div className="container grid-2" style={{ alignItems: "center", gap: 48 }}>
             <div>
-              <div className="eyebrow"><GraduationCap size={14} /> Core Academic Intelligence</div>
+              <div className="sector-badge">[ SECTOR 02 // REGRESSION ENGINE ]</div>
               <h2 className="section-title">Stop Guessing Your Semester Outcome</h2>
               <p className="lead-text" style={{ marginBottom: 24 }}>
                 Track every subject dynamically without rigid exam limits. Gradient AI supports flexible IA tests (IA1 through IA4+), calculates mathematical slopes, and automatically builds an exam timetable weighted toward weak subjects.
@@ -367,10 +382,10 @@ export default function HomePage() {
         </MotionSection>
 
         {/* SECTION 3: CAREER & PLACEMENT INTELLIGENCE DEEP DIVE (YEAR 3 & 4) */}
-        <MotionSection id="career" className="section" style={{ background: "var(--surface)", borderTop: "1px solid var(--line)" }}>
+        <MotionSection id="career" className="section" style={{ background: "rgba(255, 255, 255, 0.72)", borderTop: "1px solid var(--line)" }}>
           <div className="container grid-2" style={{ alignItems: "center", gap: 48 }}>
             {/* Career Preview Card */}
-            <GlowingCard className="card-pad-lg">
+            <GlowingCard className="card-pad-lg" onMouseEnter={() => emitSpatialEvent({ type: "energy-pulse", intensity: 0.5, color: "#38bdf8" })}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>Placement Readiness Radar</h3>
@@ -413,7 +428,7 @@ export default function HomePage() {
             </GlowingCard>
 
             <div>
-              <div className="eyebrow"><Briefcase size={14} /> Career &amp; Placement Intelligence</div>
+              <div className="sector-badge">[ SECTOR 03 // 6D CAPABILITY LATTICE ]</div>
               <h2 className="section-title">Graduate with Confidence, Not Anxiety</h2>
               <p className="lead-text" style={{ marginBottom: 24 }}>
                 For Year 3 and Year 4 students, Gradient AI unlocks full Career Intelligence. Track your projects, internships, certifications, and courses as first-class entities, take timed assessments, and map out Tier-1 interview preparation.
@@ -447,7 +462,7 @@ export default function HomePage() {
         <MotionSection id="pipeline" className="section">
           <div className="container">
             <div style={{ textAlign: "center", maxWidth: 680, margin: "0 auto 52px" }}>
-              <div className="eyebrow"><Layers size={14} /> Systematic Approach</div>
+              <div className="sector-badge">[ SECTOR 04 // PIPELINE ARCHITECTURE ]</div>
               <h2 className="section-title">From Raw Marks to Career Mastery</h2>
               <p className="lead-text" style={{ margin: "0 auto" }}>
                 A four-step structured intelligence loop turning your semester inputs into actionable study hours and placement milestones.
@@ -481,7 +496,7 @@ export default function HomePage() {
                   icon: <Target size={20} />,
                 },
               ].map((item, idx) => (
-                <GlowingCard key={item.step} delay={idx + 1} className="card-pad" style={{ position: "relative" }}>
+                <GlowingCard key={item.step} delay={idx + 1} className="card-pad" style={{ position: "relative" }} onMouseEnter={() => emitSpatialEvent({ type: "energy-pulse", intensity: 0.35 })}>
                   <div style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--primary)", opacity: 0.35, marginBottom: 8 }}>
                     {item.step}
                   </div>
@@ -499,10 +514,10 @@ export default function HomePage() {
         </MotionSection>
 
         {/* SECTION 5: YEAR-AWARE MATRIX */}
-        <MotionSection id="year-matrix" className="section" style={{ background: "var(--surface)", borderTop: "1px solid var(--line)" }}>
+        <MotionSection id="year-matrix" className="section" style={{ background: "rgba(255, 255, 255, 0.72)", borderTop: "1px solid var(--line)" }}>
           <div className="container">
             <div style={{ textAlign: "center", maxWidth: 680, margin: "0 auto 48px" }}>
-              <div className="eyebrow"><ShieldCheck size={14} /> Strict Year-Based Gating</div>
+              <div className="sector-badge">[ SECTOR 05 // PROGRESSION GATES ]</div>
               <h2 className="section-title">Designed Specifically for Each Stage of University</h2>
               <p className="lead-text" style={{ margin: "0 auto" }}>
                 Early years focus on building unbreakable academic fundamentals. Senior years transition into comprehensive placement execution.
@@ -581,7 +596,7 @@ export default function HomePage() {
         <MotionSection id="comparison" className="section">
           <div className="container">
             <div style={{ textAlign: "center", maxWidth: 700, margin: "0 auto 48px" }}>
-              <div className="eyebrow"><Zap size={14} /> The Paradigm Shift</div>
+              <div className="sector-badge">[ SECTOR 06 // PARADIGM ADVANTAGE ]</div>
               <h2 className="section-title">Why Gradient AI is Not Just Another College Portal</h2>
               <p className="lead-text" style={{ margin: "0 auto" }}>
                 Traditional university software was built for administrators to record past grades. Gradient AI was built for students to forecast future outcomes.

@@ -49,6 +49,7 @@ import {
   GlowingCard,
   PageTransition,
 } from "@/components/motion/motion-primitives";
+import { emitSpatialEvent } from "@/lib/spatial-events";
 import { useAuth } from "@/hooks/use-auth";
 import {
   getAcademicAnalysis,
@@ -120,6 +121,8 @@ export default function DashboardPage() {
             setPlacementPrediction(pPred);
           }
         }
+
+        emitSpatialEvent({ type: "energy-pulse", intensity: 0.6 });
       } catch {
         // handled via null states
       } finally {

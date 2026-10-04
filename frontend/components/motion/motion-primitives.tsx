@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { motion, useReducedMotion, type Variants, type HTMLMotionProps } from "framer-motion";
 
 export const easeSmooth = [0.16, 1, 0.3, 1] as const;
 
@@ -162,8 +162,17 @@ export function AnimatedCounter({
 }
 
 /**
- * Glowing elevated card with glass depth
+ * Glowing elevated card with glass depth.
+ * Extends HTMLMotionProps<"div"> so all standard React HTML attributes, ARIA attributes,
+ * data-* attributes, and event handlers (onMouseEnter, onMouseLeave, onMouseMove, onFocus,
+ * onBlur, etc.) are naturally accepted and forwarded to the underlying motion.div.
  */
+export interface GlowingCardProps extends HTMLMotionProps<"div"> {
+  glowColor?: string;
+  delay?: number;
+  hover?: boolean;
+}
+
 export function GlowingCard({
   children,
   className = "",
@@ -172,15 +181,8 @@ export function GlowingCard({
   hover = true,
   style,
   onClick,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  glowColor?: string;
-  delay?: number;
-  hover?: boolean;
-  style?: React.CSSProperties;
-  onClick?: () => void;
-}) {
+  ...rest
+}: GlowingCardProps) {
   const shouldReduceMotion = useReducedMotion();
 
   return (
@@ -201,6 +203,7 @@ export function GlowingCard({
       className={`gradient-card ${className}`}
       style={style}
       onClick={onClick}
+      {...rest}
     >
       {children}
     </motion.div>

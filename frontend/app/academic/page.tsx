@@ -51,6 +51,7 @@ import { IATrendChart } from "@/components/charts/ia-trend-chart";
 import { CGPARing } from "@/components/charts/cgpa-ring";
 import { RiskMatrix } from "@/components/charts/risk-matrix";
 import { PageTransition, GlowingCard, AnimatedCounter } from "@/components/motion/motion-primitives";
+import { emitSpatialEvent } from "@/lib/spatial-events";
 import { useAuth } from "@/hooks/use-auth";
 import { downloadReportPdf } from "@/lib/api";
 import {
@@ -265,6 +266,7 @@ export default function AcademicPage() {
         exam_date: "",
       })));
       setStatusMessage("Academic Record successfully saved & verified.");
+      emitSpatialEvent({ type: "energy-pulse", intensity: 0.8, color: "#10b981" });
       await loadExistingRecords();
       await loadRecordAnalysis(result.id);
       setActiveTab("analytics");
@@ -302,6 +304,7 @@ export default function AcademicPage() {
         include_weekends: includeWeekends,
       });
       setTimetable(tt);
+      emitSpatialEvent({ type: "energy-pulse", intensity: 0.7, color: "#14b8a6" });
       setStatusMessage("Exam timetable generated and balanced with weak-subject weighting.");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to solve exam timetable.");
