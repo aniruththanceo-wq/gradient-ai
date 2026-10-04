@@ -174,6 +174,14 @@ export default function SpatialWorld({ className = "" }: SpatialWorldProps) {
       // Velocity damping
       scrollVelocity *= 0.92;
 
+      // AAA Cinematic Camera Micro-Breathing
+      if (!reducedMotion) {
+        const breathingY = Math.sin(elapsed * 0.8) * 0.08;
+        const breathingX = Math.cos(elapsed * 0.6) * 0.05;
+        camera.position.x += breathingX * delta;
+        camera.position.y += breathingY * delta;
+      }
+
       activeWorld.update({
         scrollProgress,
         scrollVelocity,
