@@ -1,13 +1,13 @@
 /**
  * Gradient AI — Ultra-Realistic Cinematic Ocean World (Landing Page)
- * Features:
- * - Multi-scale wave system: broad swells, rolling waves, and fine ripples with Fresnel shading
- * - Streamlined 3D research vessel floating with realistic buoyancy, pitch/roll, and navigation beacon
+ * PeachWeb-Grade Biological Swimming & Ocean Simulation:
+ * - Multi-segment articulated fish spine with carangiform traveling-wave undulation
+ * - Natural 3D swimming kinematics: roll banking into turns, pitch trimming, burst-and-coast velocity
+ * - 3 distinct fish species/depth layers (pelagic schoolers, reef explorers, near-camera hero swimmers)
+ * - Biologically animated Dolphin companion: 4-segment spine, fluke propulsion, roll banking, cinematic foreground pass
+ * - Multi-scale wave system: broad swells, rolling waves, and fine capillary ripples with Fresnel shading
  * - Volumetric sunbeam light shafts (godrays) and moving caustic light rings
  * - Multi-tier bubble system: tiny background, midground streams, large near-camera wobbling bubbles
- * - Schooling boid fish with sinusoidal spine undulation, tail flutter, and banking turns
- * - Biologically animated Dolphin companion: torso flexion, flippers, fluke propulsion, roll banking, cinematic foreground pass
- * - Organic curved Kelp forest with ruffled blade fronds and multi-phase current sway
  * - Deformed canyon trench walls with procedural rock noise and shadows
  * - Bioluminescent jellyfish with pulsing bell membranes and trailing ribbon tentacles
  * - Megalodon Climax: 5-stage encounter with 28m hydrodynamic body, articulated jaws with dual teeth rows, and foreground lunge
@@ -27,6 +27,26 @@ export interface WorldUpdateParams {
   isMobile: boolean;
 }
 
+interface ArticulatedFish {
+  group: THREE.Group;
+  head: THREE.Mesh;
+  midbody: THREE.Mesh;
+  peduncle: THREE.Mesh;
+  tailFin: THREE.Mesh;
+  flipperL: THREE.Mesh;
+  flipperR: THREE.Mesh;
+  pos: THREE.Vector3;
+  vel: THREE.Vector3;
+  targetPos: THREE.Vector3;
+  phase: number;
+  swimSpeed: number;
+  baseSpeed: number;
+  length: number;
+  burstTimer: number;
+  roll: number;
+  isHero?: boolean;
+}
+
 export class OceanWorld {
   public group: THREE.Group;
   private camera: THREE.PerspectiveCamera;
@@ -41,16 +61,8 @@ export class OceanWorld {
   private sunRays: THREE.Group;
   private causticsGroup: THREE.Group;
 
-  // Marine Life
-  private fishList: {
-    group: THREE.Group;
-    body: THREE.Mesh;
-    tail: THREE.Mesh;
-    pos: THREE.Vector3;
-    vel: THREE.Vector3;
-    phase: number;
-    speed: number;
-  }[] = [];
+  // Articulated Marine Life (PeachWeb-Grade)
+  private fishList: ArticulatedFish[] = [];
   private bubbles: THREE.Points;
   private bubblePositions: Float32Array;
   private bubbleVelocities: Float32Array;
@@ -58,15 +70,18 @@ export class OceanWorld {
   private jellyfishGroup: THREE.Group;
   private trenchGroup: THREE.Group;
 
-  // Dolphin Companion with Segmented Spine & Foreground Swimmer
+  // Dolphin Companion with 4-Segment Articulated Spine & Foreground Swimmer
   private dolphinGroup: THREE.Group;
+  private dolphinHead: THREE.Group;
   private dolphinTorso: THREE.Mesh;
-  private dolphinTailSegment: THREE.Mesh;
+  private dolphinMidbody: THREE.Mesh;
+  private dolphinPeduncle: THREE.Mesh;
   private dolphinFluke: THREE.Mesh;
   private dolphinFlippers: THREE.Group;
   private dolphinPos = new THREE.Vector3(0, 5, 20);
   private dolphinVel = new THREE.Vector3(0, 0, 0);
   private dolphinRoll = 0;
+  private dolphinPitch = 0;
 
   // Megalodon Climax Encounter
   private megalodonGroup: THREE.Group;
@@ -188,45 +203,122 @@ export class OceanWorld {
     }
     this.group.add(this.causticsGroup);
 
-    // 6. Schooling Boid Fish with Sinusoidal Spine Undulation
-    const fishCount = isMobile ? 20 : 48;
-    const fishBodyGeo = new THREE.ConeGeometry(0.45, 1.9, 6);
-    fishBodyGeo.rotateZ(-Math.PI / 2);
-    const fishTailGeo = new THREE.BoxGeometry(0.5, 0.1, 0.85);
-    const fishMat = new THREE.MeshStandardMaterial({
+    // 6. PeachWeb-Grade Articulated Multi-Segment Fish (Traveling-Wave Swimming)
+    const pelagicCount = isMobile ? 16 : 36;
+    const reefCount = isMobile ? 4 : 8;
+    const heroCount = isMobile ? 1 : 3;
+    const totalFish = pelagicCount + reefCount + heroCount;
+
+    const fishMatCyan = new THREE.MeshStandardMaterial({
       color: 0x38bdf8,
       emissive: 0x0284c7,
       emissiveIntensity: 0.52,
+      roughness: 0.25,
+      metalness: 0.35,
+    });
+    const fishMatGold = new THREE.MeshStandardMaterial({
+      color: 0xfbbf24,
+      emissive: 0xd97706,
+      emissiveIntensity: 0.48,
+      roughness: 0.28,
+      metalness: 0.3,
+    });
+    const fishMatEmerald = new THREE.MeshStandardMaterial({
+      color: 0x34d399,
+      emissive: 0x059669,
+      emissiveIntensity: 0.45,
       roughness: 0.3,
     });
 
-    for (let i = 0; i < fishCount; i++) {
+    for (let i = 0; i < totalFish; i++) {
+      const isHero = i >= totalFish - heroCount;
+      const isReef = !isHero && i >= pelagicCount;
       const fGroup = new THREE.Group();
-      const body = new THREE.Mesh(fishBodyGeo, fishMat);
-      fGroup.add(body);
 
-      const tail = new THREE.Mesh(fishTailGeo, fishMat);
-      tail.position.set(-1.0, 0, 0);
-      fGroup.add(tail);
+      const mat = isHero ? fishMatCyan : isReef ? fishMatGold : (i % 2 === 0 ? fishMatCyan : fishMatEmerald);
+      const scale = isHero ? 1.4 : isReef ? 1.15 : (0.75 + Math.random() * 0.45);
 
-      const radius = 14 + Math.random() * 34;
-      const depth = -15 - Math.random() * 88;
-      const pos = new THREE.Vector3(
-        Math.cos((i / fishCount) * Math.PI * 2) * radius,
-        depth,
-        Math.sin((i / fishCount) * Math.PI * 2) * radius
-      );
+      // Segment 1: Head & Snout
+      const headGeo = new THREE.ConeGeometry(0.38 * scale, 0.9 * scale, 6);
+      headGeo.rotateZ(-Math.PI / 2);
+      const head = new THREE.Mesh(headGeo, mat);
+      head.position.set(0.45 * scale, 0, 0);
+      fGroup.add(head);
+
+      // Segment 2: Midbody (Flexible Anterior Torso)
+      const midGeo = new THREE.CylinderGeometry(0.36 * scale, 0.28 * scale, 0.85 * scale, 6);
+      midGeo.rotateZ(-Math.PI / 2);
+      const midbody = new THREE.Mesh(midGeo, mat);
+      midbody.position.set(-0.35 * scale, 0, 0);
+      fGroup.add(midbody);
+
+      // Segment 3: Caudal Peduncle (Posterior Tail Stock)
+      const pedGeo = new THREE.ConeGeometry(0.26 * scale, 0.8 * scale, 6);
+      pedGeo.rotateZ(Math.PI / 2);
+      const peduncle = new THREE.Mesh(pedGeo, mat);
+      peduncle.position.set(-0.75 * scale, 0, 0);
+      midbody.add(peduncle);
+
+      // Segment 4: Caudal Fin (Vertical Propulsive Blade)
+      const finGeo = new THREE.BoxGeometry(0.55 * scale, 0.05 * scale, 0.85 * scale);
+      finGeo.rotateX(Math.PI / 2);
+      const tailFin = new THREE.Mesh(finGeo, mat);
+      tailFin.position.set(-0.5 * scale, 0, 0);
+      peduncle.add(tailFin);
+
+      // Pectoral Flippers (Antiphase Flutter)
+      const flipGeo = new THREE.BoxGeometry(0.35 * scale, 0.04 * scale, 0.2 * scale);
+      const flipperL = new THREE.Mesh(flipGeo, mat);
+      flipperL.position.set(0.1 * scale, -0.1 * scale, 0.35 * scale);
+      flipperL.rotation.y = Math.PI / 4;
+      head.add(flipperL);
+
+      const flipperR = new THREE.Mesh(flipGeo, mat);
+      flipperR.position.set(0.1 * scale, -0.1 * scale, -0.35 * scale);
+      flipperR.rotation.y = -Math.PI / 4;
+      head.add(flipperR);
+
+      // Initial Position & Behavior assignment
+      let pos: THREE.Vector3;
+      if (isHero) {
+        // Hero near-camera fish
+        pos = new THREE.Vector3((Math.random() - 0.5) * 20, -10 - Math.random() * 25, 18 + Math.random() * 8);
+      } else if (isReef) {
+        // Reef / Trench explorers
+        pos = new THREE.Vector3((Math.random() - 0.5) * 55, -45 - Math.random() * 45, (Math.random() - 0.5) * 55);
+      } else {
+        // Pelagic school
+        const radius = 16 + Math.random() * 32;
+        const depth = -12 - Math.random() * 75;
+        pos = new THREE.Vector3(
+          Math.cos((i / pelagicCount) * Math.PI * 2) * radius,
+          depth,
+          Math.sin((i / pelagicCount) * Math.PI * 2) * radius
+        );
+      }
+
       fGroup.position.copy(pos);
       this.group.add(fGroup);
 
+      const baseSpeed = isHero ? 3.8 : isReef ? 2.2 : (2.8 + Math.random() * 1.5);
       this.fishList.push({
         group: fGroup,
-        body,
-        tail,
+        head,
+        midbody,
+        peduncle,
+        tailFin,
+        flipperL,
+        flipperR,
         pos,
-        vel: new THREE.Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2),
+        vel: new THREE.Vector3((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 3),
+        targetPos: pos.clone().add(new THREE.Vector3((Math.random() - 0.5) * 25, 0, (Math.random() - 0.5) * 25)),
         phase: Math.random() * Math.PI * 2,
-        speed: 1.0 + Math.random() * 0.9,
+        swimSpeed: baseSpeed,
+        baseSpeed,
+        length: scale * 2.2,
+        burstTimer: Math.random() * 5,
+        roll: 0,
+        isHero,
       });
     }
 
@@ -328,7 +420,7 @@ export class OceanWorld {
     });
     this.group.add(this.trenchGroup);
 
-    // 11. Biologically Animated Dolphin Companion (Segmented Spine & Flukes)
+    // 11. Biologically Animated Dolphin (4-Segment Articulated Spine)
     this.dolphinGroup = new THREE.Group();
     const dolphMat = new THREE.MeshStandardMaterial({
       color: 0x38bdf8,
@@ -338,34 +430,58 @@ export class OceanWorld {
       metalness: 0.38,
     });
 
-    const torsoGeo = new THREE.CapsuleGeometry(0.95, 3.4, 8, 12);
+    // Segment 1: Head & Beak
+    this.dolphinHead = new THREE.Group();
+    const melonGeo = new THREE.SphereGeometry(0.85, 10, 8);
+    melonGeo.scale(1.2, 0.9, 0.9);
+    const melon = new THREE.Mesh(melonGeo, dolphMat);
+    this.dolphinHead.add(melon);
+
+    const beakGeo = new THREE.ConeGeometry(0.3, 0.95, 6);
+    beakGeo.rotateZ(-Math.PI / 2);
+    const beak = new THREE.Mesh(beakGeo, dolphMat);
+    beak.position.set(0.9, -0.15, 0);
+    this.dolphinHead.add(beak);
+    this.dolphinGroup.add(this.dolphinHead);
+
+    // Segment 2: Torso (Anterior Chest with Dorsal Fin)
+    const torsoGeo = new THREE.CapsuleGeometry(0.92, 2.2, 8, 10);
     torsoGeo.rotateZ(Math.PI / 2);
     this.dolphinTorso = new THREE.Mesh(torsoGeo, dolphMat);
+    this.dolphinTorso.position.set(-1.0, 0, 0);
     this.dolphinGroup.add(this.dolphinTorso);
 
     const finShape = new THREE.Shape();
     finShape.moveTo(0, 0);
     finShape.bezierCurveTo(0.2, 0.8, -0.6, 1.4, -1.0, 1.2);
     finShape.bezierCurveTo(-0.4, 0.6, -0.2, 0.2, 0, 0);
-    const dorsal = new THREE.Mesh(new THREE.ExtrudeGeometry(finShape, { depth: 0.15, bevelEnabled: false }), dolphMat);
+    const dorsal = new THREE.Mesh(new THREE.ExtrudeGeometry(finShape, { depth: 0.14, bevelEnabled: false }), dolphMat);
     dorsal.position.set(-0.2, 0.85, 0);
-    this.dolphinGroup.add(dorsal);
+    this.dolphinTorso.add(dorsal);
 
+    // Pectoral Flippers
     this.dolphinFlippers = new THREE.Group();
     const flipperGeo = new THREE.ConeGeometry(0.35, 1.45, 4);
     flipperGeo.rotateZ(Math.PI / 3);
     const flipL = new THREE.Mesh(flipperGeo, dolphMat);
-    flipL.position.set(0.6, -0.4, 0.95);
+    flipL.position.set(0.5, -0.4, 0.95);
     const flipR = new THREE.Mesh(flipperGeo, dolphMat);
-    flipR.position.set(0.6, -0.4, -0.95);
+    flipR.position.set(0.5, -0.4, -0.95);
     flipR.rotateX(Math.PI);
     this.dolphinFlippers.add(flipL);
     this.dolphinFlippers.add(flipR);
-    this.dolphinGroup.add(this.dolphinFlippers);
+    this.dolphinTorso.add(this.dolphinFlippers);
 
-    this.dolphinTailSegment = new THREE.Mesh(new THREE.ConeGeometry(0.6, 2.1, 6), dolphMat);
-    this.dolphinTailSegment.rotateZ(Math.PI / 2);
-    this.dolphinTailSegment.position.set(-2.1, 0, 0);
+    // Segment 3: Midbody (Flexible Spinal Segment)
+    this.dolphinMidbody = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.65, 1.6, 8), dolphMat);
+    this.dolphinMidbody.rotateZ(Math.PI / 2);
+    this.dolphinMidbody.position.set(-1.8, 0, 0);
+    this.dolphinTorso.add(this.dolphinMidbody);
+
+    // Segment 4: Caudal Peduncle & Fluke
+    this.dolphinPeduncle = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.8, 6), dolphMat);
+    this.dolphinPeduncle.rotateZ(Math.PI / 2);
+    this.dolphinPeduncle.position.set(-1.4, 0, 0);
 
     const flukeShape = new THREE.Shape();
     flukeShape.moveTo(0, 0);
@@ -375,9 +491,9 @@ export class OceanWorld {
     flukeShape.bezierCurveTo(-1.2, -0.4, -0.8, 0.4, 0, 0);
     this.dolphinFluke = new THREE.Mesh(new THREE.ExtrudeGeometry(flukeShape, { depth: 0.1, bevelEnabled: false }), dolphMat);
     this.dolphinFluke.rotateX(Math.PI / 2);
-    this.dolphinFluke.position.set(-1.0, 0, 0);
-    this.dolphinTailSegment.add(this.dolphinFluke);
-    this.dolphinGroup.add(this.dolphinTailSegment);
+    this.dolphinFluke.position.set(-0.95, 0, 0);
+    this.dolphinPeduncle.add(this.dolphinFluke);
+    this.dolphinMidbody.add(this.dolphinPeduncle);
 
     this.dolphinGroup.scale.setScalar(0.9);
     this.group.add(this.dolphinGroup);
@@ -458,7 +574,7 @@ export class OceanWorld {
   public update(params: WorldUpdateParams): void {
     const { scrollProgress, scrollVelocity, mouseX, mouseY, delta, elapsed, reducedMotion } = params;
 
-    // 1. Camera Descent into Abyss
+    // 1. Continuous Cinematic Camera Descent into Abyss
     const targetY = 18 - scrollProgress * 135;
     const targetZ = 38 - Math.sin(scrollProgress * Math.PI) * 10;
     const targetX = Math.sin(scrollProgress * Math.PI * 1.5) * 8 + mouseX * 4;
@@ -473,7 +589,7 @@ export class OceanWorld {
       this.camera.position.set(0, targetY, targetZ);
     }
 
-    // 2. Animate Multi-Scale Waves
+    // 2. Multi-Scale Water Waves Simulation
     if (!reducedMotion) {
       for (let i = 0; i < this.waterPositions.length; i += 3) {
         const u = this.waterPositions[i];
@@ -500,14 +616,59 @@ export class OceanWorld {
       });
     }
 
-    // 5. Schooling Fish Motion
+    // 5. PeachWeb-Grade Biological Fish Swimming (Traveling Waves + Banking + Burst-and-Coast)
     if (!reducedMotion) {
       this.fishList.forEach((fish) => {
-        fish.phase += delta * fish.speed * 2.8;
-        fish.group.position.x += Math.sin(fish.phase * 0.5) * 0.15;
-        fish.group.position.z += Math.cos(fish.phase * 0.5) * 0.15;
-        fish.group.rotation.y = Math.sin(fish.phase * 0.5) * 0.4;
-        fish.tail.rotation.y = Math.sin(fish.phase * 4.5) * 0.65;
+        // Burst and Coast mechanism
+        fish.burstTimer += delta;
+        if (fish.burstTimer > 4.5) {
+          fish.swimSpeed = fish.baseSpeed * (1.4 + Math.random() * 0.6);
+          if (fish.burstTimer > 6.0) fish.burstTimer = 0;
+        } else {
+          fish.swimSpeed += (fish.baseSpeed - fish.swimSpeed) * delta * 2.0;
+        }
+
+        // Advance swimming wave phase
+        const waveFreq = fish.swimSpeed * 2.4;
+        fish.phase += delta * waveFreq;
+
+        // Steering towards target
+        const toTarget = fish.targetPos.clone().sub(fish.pos);
+        if (toTarget.length() < 6 || Math.random() < 0.005) {
+          if (fish.isHero) {
+            fish.targetPos.set((Math.random() - 0.5) * 26, -10 - Math.random() * 30, 18 + Math.random() * 10);
+          } else {
+            fish.targetPos.set((Math.random() - 0.5) * 65, -15 - Math.random() * 85, (Math.random() - 0.5) * 65);
+          }
+        }
+        toTarget.normalize();
+        fish.vel.lerp(toTarget.multiplyScalar(fish.swimSpeed), delta * 1.8);
+        fish.pos.addScaledVector(fish.vel, delta);
+        fish.group.position.copy(fish.pos);
+
+        // Heading, Pitch, and Roll Banking kinematics
+        const heading = Math.atan2(fish.vel.x, fish.vel.z);
+        const pitch = -Math.asin(Math.min(Math.max(fish.vel.y / Math.max(fish.swimSpeed, 0.1), -1), 1));
+        const targetRoll = -fish.vel.x * 0.12;
+        fish.roll += (targetRoll - fish.roll) * delta * 4.0;
+
+        fish.group.rotation.y = heading;
+        fish.group.rotation.x = pitch;
+        fish.group.rotation.z = fish.roll;
+
+        // Vertebral Traveling-Wave Spine Undulation (PeachWeb reference standard)
+        const waveAmp = Math.min(fish.swimSpeed / fish.baseSpeed, 1.6);
+        const yawMid = Math.sin(fish.phase) * 0.22 * waveAmp;
+        const yawPed = Math.sin(fish.phase - 0.7) * 0.38 * waveAmp;
+        const yawFin = Math.sin(fish.phase - 1.4) * 0.65 * waveAmp;
+
+        fish.midbody.rotation.y = yawMid;
+        fish.peduncle.rotation.y = yawPed;
+        fish.tailFin.rotation.y = yawFin;
+
+        // Antiphase Pectoral Flipper Flutter
+        fish.flipperL.rotation.z = Math.sin(fish.phase * 0.8) * 0.35;
+        fish.flipperR.rotation.z = -Math.sin(fish.phase * 0.8) * 0.35;
       });
     }
 
@@ -536,7 +697,7 @@ export class OceanWorld {
       });
     }
 
-    // 8. Dolphin Companion: Physics Locomotion & Cinematic Foreground Pass
+    // 8. Dolphin Companion: Delayed Target Spring & 4-Segment Spinal Undulation
     let dolphinTargetZ = this.camera.position.z - 18;
     let dolphinTargetX = this.camera.position.x + mouseX * 14;
     let dolphinTargetY = this.camera.position.y - 1.5 + mouseY * 6;
@@ -559,10 +720,16 @@ export class OceanWorld {
     if (!reducedMotion) {
       const speed = this.dolphinVel.length();
       const swimPhase = elapsed * 6.5;
-      this.dolphinTailSegment.rotation.y = Math.sin(swimPhase) * (0.35 + speed * 0.15);
-      this.dolphinFluke.rotation.y = Math.cos(swimPhase) * 0.4;
-      
-      const targetRoll = -this.dolphinVel.x * 0.22;
+
+      // 4-Segment Dorsoventral Spinal Undulation (Dolphin fluke propulsion)
+      this.dolphinMidbody.rotation.z = Math.sin(swimPhase - 0.5) * (0.18 + speed * 0.06);
+      this.dolphinPeduncle.rotation.z = Math.sin(swimPhase - 1.1) * (0.28 + speed * 0.08);
+      this.dolphinFluke.rotation.z = Math.sin(swimPhase - 1.7) * 0.42;
+
+      // Pectoral flipper pitch/roll trimming
+      this.dolphinFlippers.rotation.x = Math.sin(swimPhase * 0.5) * 0.15;
+
+      const targetRoll = -this.dolphinVel.x * 0.24;
       this.dolphinRoll += (targetRoll - this.dolphinRoll) * 0.1;
       this.dolphinGroup.rotation.z = this.dolphinRoll;
       this.dolphinGroup.rotation.y = -this.dolphinVel.x * 0.15;
