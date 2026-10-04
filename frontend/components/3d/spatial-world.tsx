@@ -42,9 +42,37 @@ export default function SpatialWorld({ className = "" }: SpatialWorldProps) {
     let height = window.innerHeight;
     const isMobile = width < 768;
 
-    // 1. Scene & Perspective Camera
+    // 1. Scene & Perspective Camera with Per-World Fog & Exposure Tuning
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x030709, 0.0038);
+    
+    // Per-route atmospheric fog & tone mapping exposure
+    let worldFogColor = 0x020813;
+    let worldFogDensity = 0.0038;
+    let worldExposure = 1.15;
+
+    if (pathname === "/") {
+      worldFogColor = 0x020a14;
+      worldFogDensity = 0.0042;
+      worldExposure = 1.12;
+    } else if (pathname === "/dashboard") {
+      worldFogColor = 0x030d1a;
+      worldFogDensity = 0.0035;
+      worldExposure = 1.22;
+    } else if (pathname === "/academic") {
+      worldFogColor = 0x02110c;
+      worldFogDensity = 0.0038;
+      worldExposure = 1.16;
+    } else if (pathname === "/placement") {
+      worldFogColor = 0x100402;
+      worldFogDensity = 0.0045;
+      worldExposure = 1.28;
+    } else {
+      worldFogColor = 0x010206;
+      worldFogDensity = 0.0025;
+      worldExposure = 1.08;
+    }
+
+    scene.fog = new THREE.FogExp2(worldFogColor, worldFogDensity);
 
     const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 1000);
     camera.position.set(0, 0, 40);
@@ -61,7 +89,7 @@ export default function SpatialWorld({ className = "" }: SpatialWorldProps) {
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       renderer.setClearColor(0x000000, 0);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.15;
+      renderer.toneMappingExposure = worldExposure;
       container.appendChild(renderer.domElement);
     } catch {
       return;

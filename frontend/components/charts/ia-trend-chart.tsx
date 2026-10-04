@@ -97,16 +97,16 @@ export function IATrendChart({
                 return (
                   <div
                     style={{
-                      background: "rgba(255, 255, 255, 0.95)",
-                      backdropFilter: "blur(10px)",
-                      border: "1px solid var(--line-strong)",
+                      background: "rgba(10, 20, 28, 0.94)",
+                      backdropFilter: "blur(12px)",
+                      border: "1px solid rgba(16, 185, 129, 0.35)",
                       borderRadius: "var(--radius-sm)",
                       padding: "10px 14px",
-                      boxShadow: "var(--shadow-md)",
+                      boxShadow: "0 8px 32px rgba(0, 0, 0, 0.85), 0 0 12px rgba(16, 185, 129, 0.15)",
                       fontSize: "0.84rem",
                     }}
                   >
-                    <div style={{ fontWeight: 700, color: "var(--ink)", marginBottom: 6 }}>
+                    <div style={{ fontWeight: 700, color: "#f8fafc", marginBottom: 6 }}>
                       {label} Performance
                     </div>
                     {payload.map((entry: any, index: number) => (

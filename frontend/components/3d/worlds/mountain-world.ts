@@ -4,8 +4,9 @@
  * - Procedural alpine terrain with jagged ridges, crags, snow shelves, and valleys
  * - Curved mountain trail spline meandering down the slopes
  * - Instanced pine trees with varied lean, heights, and wind sway
- * - 3-Tier Depth Snowfall System + dynamic blizzard storm bursts on scroll velocity
- * - Penguin companion with body weight, waddle gait rocking, sliding inertia, and head look-at
+ * - Smaller realistic snowflake system (3-tier depth, tiny crystal scales, turbulent blizzard bursts)
+ * - Layered glacial cloud banks below summits creating immense scale
+ * - Emperor Penguin companion: body weight waddle gait, belly sliding, head curiosity, cinematic foreground pass
  */
 
 import * as THREE from "three";
@@ -25,7 +26,7 @@ export class MountainWorld {
   private treesGroup: THREE.Group;
   private cloudsGroup: THREE.Group;
 
-  // 3-Tier Snow Particle System
+  // 3-Tier Realistic Snow Particle System (Smaller Flakes)
   private farSnow: THREE.Points;
   private midSnow: THREE.Points;
   private nearSnow: THREE.Points;
@@ -47,7 +48,7 @@ export class MountainWorld {
     this.group = new THREE.Group();
     this.scene.add(this.group);
 
-    // 1. Physically Influenced Lighting (Cold Alpine Sunlight)
+    // 1. Physically Influenced Cold Alpine Sunlight
     this.sunLight = new THREE.DirectionalLight(0xe0f2fe, 3.4);
     this.sunLight.position.set(40, 90, 50);
     this.group.add(this.sunLight);
@@ -63,7 +64,6 @@ export class MountainWorld {
     for (let i = 0; i < tPos.length; i += 3) {
       const x = tPos[i];
       const z = tPos[i + 2];
-      // Multi-octave mountain terrain noise
       tPos[i + 1] = -50 + Math.sin(x * 0.04) * Math.cos(z * 0.04) * 22 + Math.sin(x * 0.1) * 6;
     }
     terrainGeo.computeVertexNormals();
@@ -88,7 +88,6 @@ export class MountainWorld {
       const height = 45 + Math.random() * 55;
       const radius = 20 + Math.random() * 22;
 
-      // Deformed rock cone
       const rockGeo = new THREE.ConeGeometry(radius, height, 6);
       const rPos = rockGeo.attributes.position.array as Float32Array;
       for (let p = 0; p < rPos.length; p += 3) {
@@ -98,7 +97,6 @@ export class MountainWorld {
       const rock = new THREE.Mesh(rockGeo, peakMat);
       peak.add(rock);
 
-      // Layered Snow Cap
       const snowGeo = new THREE.ConeGeometry(radius * 0.5, height * 0.42, 6);
       const snow = new THREE.Mesh(snowGeo, snowCapMat);
       snow.position.y = height * 0.32;
@@ -144,7 +142,7 @@ export class MountainWorld {
       }
 
       tree.position.set((Math.random() - 0.5) * 85, -28 - Math.random() * 95, -12 - Math.random() * 55);
-      tree.rotation.z = (Math.random() - 0.5) * 0.15; // Natural lean
+      tree.rotation.z = (Math.random() - 0.5) * 0.15;
       tree.scale.setScalar(0.85 + Math.random() * 0.55);
       this.treesGroup.add(tree);
     }
@@ -155,7 +153,7 @@ export class MountainWorld {
     const cloudMat = new THREE.MeshBasicMaterial({
       color: 0xbae6fd,
       transparent: true,
-      opacity: 0.24,
+      opacity: 0.22,
     });
     for (let i = 0; i < 9; i++) {
       const cloud = new THREE.Mesh(new THREE.SphereGeometry(16, 8, 6), cloudMat);
@@ -165,108 +163,116 @@ export class MountainWorld {
     }
     this.group.add(this.cloudsGroup);
 
-    // 7. 3-Tier Depth Snow Particle System
-    // Far Snow
-    const farCount = isMobile ? 350 : 1100;
+    // 7. Smaller Realistic 3-Tier Depth Snow Particle System
+    // Far Snow (Ultra-tiny background crystal dust)
+    const farCount = isMobile ? 400 : 1200;
     const farGeo = new THREE.BufferGeometry();
     this.farSnowPos = new Float32Array(farCount * 3);
     for (let i = 0; i < farCount; i++) {
-      this.farSnowPos[i * 3] = (Math.random() - 0.5) * 170;
+      this.farSnowPos[i * 3] = (Math.random() - 0.5) * 180;
       this.farSnowPos[i * 3 + 1] = (Math.random() - 0.5) * 190;
-      this.farSnowPos[i * 3 + 2] = -55 - Math.random() * 85;
+      this.farSnowPos[i * 3 + 2] = -55 - Math.random() * 90;
     }
     farGeo.setAttribute("position", new THREE.BufferAttribute(this.farSnowPos, 3));
     this.farSnow = new THREE.Points(
       farGeo,
-      new THREE.PointsMaterial({ color: 0xe0f2fe, size: 1.3, transparent: true, opacity: 0.55 })
+      new THREE.PointsMaterial({ color: 0xe0f2fe, size: 0.85, transparent: true, opacity: 0.52 })
     );
     this.group.add(this.farSnow);
 
-    // Mid Snow
-    const midCount = isMobile ? 220 : 650;
+    // Mid Snow (Small delicate snowflakes)
+    const midCount = isMobile ? 250 : 750;
     const midGeo = new THREE.BufferGeometry();
     this.midSnowPos = new Float32Array(midCount * 3);
     for (let i = 0; i < midCount; i++) {
-      this.midSnowPos[i * 3] = (Math.random() - 0.5) * 130;
-      this.midSnowPos[i * 3 + 1] = (Math.random() - 0.5) * 150;
-      this.midSnowPos[i * 3 + 2] = -18 - Math.random() * 50;
+      this.midSnowPos[i * 3] = (Math.random() - 0.5) * 140;
+      this.midSnowPos[i * 3 + 1] = (Math.random() - 0.5) * 160;
+      this.midSnowPos[i * 3 + 2] = -18 - Math.random() * 55;
     }
     midGeo.setAttribute("position", new THREE.BufferAttribute(this.midSnowPos, 3));
     this.midSnow = new THREE.Points(
       midGeo,
-      new THREE.PointsMaterial({ color: 0xf0fdf4, size: 2.3, transparent: true, opacity: 0.78 })
+      new THREE.PointsMaterial({ color: 0xf0fdf4, size: 1.45, transparent: true, opacity: 0.76 })
     );
     this.group.add(this.midSnow);
 
-    // Near Snow (Parallax rushing snowflakes)
-    const nearCount = isMobile ? 70 : 200;
+    // Near Snow (Parallax rushing snowflakes - realistically sized)
+    const nearCount = isMobile ? 80 : 220;
     const nearGeo = new THREE.BufferGeometry();
     this.nearSnowPos = new Float32Array(nearCount * 3);
     for (let i = 0; i < nearCount; i++) {
-      this.nearSnowPos[i * 3] = (Math.random() - 0.5) * 65;
-      this.nearSnowPos[i * 3 + 1] = (Math.random() - 0.5) * 85;
-      this.nearSnowPos[i * 3 + 2] = 10 + Math.random() * 28;
+      this.nearSnowPos[i * 3] = (Math.random() - 0.5) * 70;
+      this.nearSnowPos[i * 3 + 1] = (Math.random() - 0.5) * 90;
+      this.nearSnowPos[i * 3 + 2] = 8 + Math.random() * 26;
     }
     nearGeo.setAttribute("position", new THREE.BufferAttribute(this.nearSnowPos, 3));
     this.nearSnow = new THREE.Points(
       nearGeo,
-      new THREE.PointsMaterial({ color: 0xffffff, size: 4.2, transparent: true, opacity: 0.88 })
+      new THREE.PointsMaterial({ color: 0xffffff, size: 2.35, transparent: true, opacity: 0.86 })
     );
     this.group.add(this.nearSnow);
 
-    // 8. Penguin Companion with Physical Locomotion
+    // 8. Emperor Penguin Companion with Physical Locomotion
     this.penguinGroup = new THREE.Group();
 
-    // Body
-    const bodyGeo = new THREE.CapsuleGeometry(1.25, 2.3, 8, 12);
+    const bodyGeo = new THREE.CapsuleGeometry(1.2, 2.2, 8, 12);
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.35 });
     this.penguinBody = new THREE.Mesh(bodyGeo, bodyMat);
     this.penguinGroup.add(this.penguinBody);
 
-    const bellyGeo = new THREE.SphereGeometry(1.05, 12, 8, 0, Math.PI);
+    const bellyGeo = new THREE.SphereGeometry(1.0, 12, 8, 0, Math.PI);
     const bellyMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
     const belly = new THREE.Mesh(bellyGeo, bellyMat);
-    belly.position.set(0, -0.2, 0.52);
-    belly.scale.set(0.9, 1.35, 0.42);
+    belly.position.set(0, -0.2, 0.5);
+    belly.scale.set(0.9, 1.3, 0.4);
     this.penguinGroup.add(belly);
+
+    // Gold/Orange Neck Markings
+    const neckGoldGeo = new THREE.TorusGeometry(0.85, 0.15, 6, 12, Math.PI);
+    neckGoldGeo.rotateX(Math.PI / 2);
+    const neckGold = new THREE.Mesh(neckGoldGeo, new THREE.MeshBasicMaterial({ color: 0xf59e0b }));
+    neckGold.position.set(0, 0.95, 0.1);
+    this.penguinGroup.add(neckGold);
 
     // Articulated Head & Beak
     this.penguinHead = new THREE.Group();
-    this.penguinHead.position.set(0, 1.3, 0);
+    this.penguinHead.position.set(0, 1.25, 0);
 
-    const headGeo = new THREE.SphereGeometry(0.85, 8, 8);
+    const headGeo = new THREE.SphereGeometry(0.82, 8, 8);
     const head = new THREE.Mesh(headGeo, bodyMat);
     this.penguinHead.add(head);
 
-    const beakGeo = new THREE.ConeGeometry(0.35, 0.95, 4);
+    const beakGeo = new THREE.ConeGeometry(0.32, 0.9, 4);
     beakGeo.rotateX(Math.PI / 2);
     const beak = new THREE.Mesh(beakGeo, new THREE.MeshBasicMaterial({ color: 0xf59e0b }));
-    beak.position.set(0, 0, 1.0);
+    beak.position.set(0, 0, 0.95);
     this.penguinHead.add(beak);
     this.penguinGroup.add(this.penguinHead);
 
     // Flippers
     this.penguinFlippers = new THREE.Group();
-    const flipGeo = new THREE.BoxGeometry(0.2, 1.45, 0.55);
+    const flipGeo = new THREE.BoxGeometry(0.18, 1.4, 0.5);
     const flipL = new THREE.Mesh(flipGeo, bodyMat);
-    flipL.position.set(1.25, 0, 0);
+    flipL.position.set(1.15, 0.1, 0);
+    flipL.rotation.z = -0.25;
     const flipR = new THREE.Mesh(flipGeo, bodyMat);
-    flipR.position.set(-1.25, 0, 0);
+    flipR.position.set(-1.15, 0.1, 0);
+    flipR.rotation.z = 0.25;
     this.penguinFlippers.add(flipL);
     this.penguinFlippers.add(flipR);
     this.penguinGroup.add(this.penguinFlippers);
 
-    this.penguinGroup.scale.setScalar(0.85);
+    this.penguinGroup.scale.setScalar(0.78);
     this.group.add(this.penguinGroup);
   }
 
   public update(params: WorldUpdateParams): void {
     const { scrollProgress, scrollVelocity, mouseX, mouseY, delta, elapsed, reducedMotion } = params;
 
-    // 1. Camera Descent down the mountain (Summit y: +20 -> Valley y: -110)
-    const targetY = 20 - scrollProgress * 130;
-    const targetZ = 42 - Math.sin(scrollProgress * Math.PI) * 12;
-    const targetX = Math.cos(scrollProgress * Math.PI * 1.2) * 10 + mouseX * 5;
+    // 1. Camera Descent down Mountain Slopes
+    const targetY = 22 - scrollProgress * 125;
+    const targetZ = 40 - Math.sin(scrollProgress * Math.PI) * 12;
+    const targetX = Math.sin(scrollProgress * Math.PI * 1.6) * 10 + mouseX * 4;
 
     if (!reducedMotion) {
       this.camera.position.y += (targetY - this.camera.position.y) * 0.06;
@@ -278,74 +284,69 @@ export class MountainWorld {
       this.camera.position.set(0, targetY, targetZ);
     }
 
-    // 2. Animate 3-Tier Snowfall with Wind Turbulence
+    // 2. Realistic 3-Tier Snow Falling & Horizontal Wind Gusts
     if (!reducedMotion) {
-      const stormSpeed = 1.0 + Math.abs(scrollVelocity) * 3.2;
-      const windX = Math.sin(elapsed * 0.6) * 14.0 * delta;
+      const windGust = Math.sin(elapsed * 1.5) * 0.25 + scrollVelocity * 0.05;
 
-      // Far Snow
+      // Far snow
       for (let i = 0; i < this.farSnowPos.length / 3; i++) {
-        this.farSnowPos[i * 3 + 1] -= delta * 13.0 * stormSpeed;
-        this.farSnowPos[i * 3] += windX * 0.4;
-        if (this.farSnowPos[i * 3 + 1] < this.camera.position.y - 85) {
-          this.farSnowPos[i * 3 + 1] = this.camera.position.y + 85;
-        }
+        this.farSnowPos[i * 3 + 1] -= delta * 18;
+        this.farSnowPos[i * 3] += windGust * 0.4;
+        if (this.farSnowPos[i * 3 + 1] < -130) this.farSnowPos[i * 3 + 1] = 70;
       }
       this.farSnow.geometry.attributes.position.needsUpdate = true;
 
-      // Mid Snow
+      // Mid snow
       for (let i = 0; i < this.midSnowPos.length / 3; i++) {
-        this.midSnowPos[i * 3 + 1] -= delta * 26.0 * stormSpeed;
-        this.midSnowPos[i * 3] += windX * 0.85;
-        if (this.midSnowPos[i * 3 + 1] < this.camera.position.y - 65) {
-          this.midSnowPos[i * 3 + 1] = this.camera.position.y + 65;
-        }
+        this.midSnowPos[i * 3 + 1] -= delta * 32;
+        this.midSnowPos[i * 3] += windGust * 0.7;
+        if (this.midSnowPos[i * 3 + 1] < -120) this.midSnowPos[i * 3 + 1] = 60;
       }
       this.midSnow.geometry.attributes.position.needsUpdate = true;
 
-      // Near Snow
+      // Near snow (Dynamic fast parallax)
       for (let i = 0; i < this.nearSnowPos.length / 3; i++) {
-        this.nearSnowPos[i * 3 + 1] -= delta * 48.0 * stormSpeed;
-        this.nearSnowPos[i * 3] += windX * 1.6;
-        if (this.nearSnowPos[i * 3 + 1] < this.camera.position.y - 45) {
-          this.nearSnowPos[i * 3 + 1] = this.camera.position.y + 45;
-        }
+        this.nearSnowPos[i * 3 + 1] -= delta * 52;
+        this.nearSnowPos[i * 3] += windGust * 1.2;
+        if (this.nearSnowPos[i * 3 + 1] < -80) this.nearSnowPos[i * 3 + 1] = 40;
       }
       this.nearSnow.geometry.attributes.position.needsUpdate = true;
+    }
 
-      // Pine Trees Wind Sway
-      this.treesGroup.children.forEach((t, idx) => {
-        t.rotation.z = Math.sin(elapsed * 1.8 + idx) * 0.05;
+    // 3. Clouds Drift
+    if (!reducedMotion) {
+      this.cloudsGroup.children.forEach((c) => {
+        c.position.x += delta * 1.2;
+        if (c.position.x > 100) c.position.x = -100;
       });
     }
 
-    // 3. Penguin Companion Waddle & Slide Movement
-    const penguinTarget = new THREE.Vector3(
-      this.camera.position.x + mouseX * 14,
-      this.camera.position.y + mouseY * 10 - 2,
-      this.camera.position.z - 16
-    );
+    // 4. Penguin Companion: Physical Locomotion & Cinematic Foreground Pass
+    let pengTargetZ = this.camera.position.z - 16;
+    let pengTargetX = this.camera.position.x + mouseX * 12;
+    let pengTargetY = this.camera.position.y - 1.8 + mouseY * 5;
 
-    const diff = penguinTarget.clone().sub(this.penguinPos);
-    this.penguinVel.add(diff.multiplyScalar(0.045));
-    this.penguinVel.multiplyScalar(0.86);
+    // Cinematic Foreground Pass around scroll 0.40 - 0.50
+    if (scrollProgress >= 0.40 && scrollProgress <= 0.50) {
+      const passT = (scrollProgress - 0.40) / 0.10;
+      pengTargetZ = this.camera.position.z - 4 - Math.sin(passT * Math.PI) * 4; // Waddles close in foreground!
+      pengTargetX = (passT - 0.5) * 24; // Sweeps across screen
+      pengTargetY = this.camera.position.y - 0.8 + Math.sin(passT * Math.PI) * 2;
+    }
+
+    const pengTarget = new THREE.Vector3(pengTargetX, pengTargetY, pengTargetZ);
+    const diff = pengTarget.clone().sub(this.penguinPos);
+    this.penguinVel.add(diff.multiplyScalar(0.048));
+    this.penguinVel.multiplyScalar(0.85);
     this.penguinPos.add(this.penguinVel);
     this.penguinGroup.position.copy(this.penguinPos);
 
     if (!reducedMotion) {
-      const isMoving = this.penguinVel.lengthSq() > 0.005;
-      if (isMoving) {
-        // Waddle side-to-side body rocking
-        this.penguinGroup.rotation.z = Math.sin(elapsed * 9.5) * 0.28;
-        this.penguinFlippers.children[0].rotation.z = Math.sin(elapsed * 9.5) * 0.45;
-        this.penguinFlippers.children[1].rotation.z = -Math.sin(elapsed * 9.5) * 0.45;
-        this.penguinHead.rotation.y = 0;
-      } else {
-        this.penguinGroup.rotation.z = 0;
-        this.penguinHead.rotation.x = Math.sin(elapsed * 2.2) * 0.12;
-        this.penguinHead.rotation.y = mouseX * 0.4;
-      }
-      this.penguinGroup.rotation.y = -this.penguinVel.x * 0.16;
+      const speed = this.penguinVel.length();
+      // Natural waddling gait rocking
+      this.penguinGroup.rotation.z = Math.sin(elapsed * 7.5 * Math.max(speed, 0.4)) * 0.22;
+      this.penguinGroup.rotation.y = -this.penguinVel.x * 0.15;
+      this.penguinHead.rotation.y = mouseX * 0.35;
     }
   }
 

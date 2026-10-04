@@ -1,10 +1,10 @@
 /**
  * Gradient AI — Ultra-Realistic Cinematic Solar System Universe (Onboarding, Reports, Space)
  * Features:
- * - Central blazing Sun with solar corona layers & dynamic point illumination
+ * - Central blazing Sun with dynamic solar corona flares & high-intensity point illumination
  * - 6 distinct orbiting planets with individual atmospheric shells (Fresnel rim glow) & Saturn 3D rings
  * - 3D Asteroid Belt with tumbling irregular rock chunks
- * - Deep space starfield (2,800 stars) + cosmic nebula gas clouds
+ * - Deep space 3-tier starfield (2,800 stars) + cosmic nebula gas cloud clusters
  * - Cinematic orbital space camera fly-through
  */
 
@@ -24,7 +24,9 @@ export class SolarWorld {
   private planets: { mesh: THREE.Group; orbitRadius: number; speed: number; angle: number }[] = [];
   private asteroidBelt: THREE.Points;
   private asteroidPos: Float32Array;
-  private starfield: THREE.Points;
+  private starfieldFar: THREE.Points;
+  private starfieldNear: THREE.Points;
+  private nebulaGroup: THREE.Group;
 
   constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera, isMobile: boolean) {
     this.scene = scene;
@@ -40,7 +42,7 @@ export class SolarWorld {
     this.group.add(this.sunMesh);
 
     // Outer Solar Corona Flare
-    const coronaGeo = new THREE.SphereGeometry(8.5, 20, 20);
+    const coronaGeo = new THREE.SphereGeometry(8.8, 20, 20);
     const coronaMat = new THREE.MeshBasicMaterial({
       color: 0xfbbf24,
       transparent: true,
@@ -53,11 +55,27 @@ export class SolarWorld {
     this.group.add(this.sunCorona);
 
     // Sun Illumination Light
-    this.sunLight = new THREE.PointLight(0xffedd5, 4.8, 320);
+    this.sunLight = new THREE.PointLight(0xffedd5, 5.0, 340);
     this.sunLight.position.set(0, 0, -80);
     this.group.add(this.sunLight);
 
-    // 2. Planets & Elliptical Orbital Splines
+    // 2. Cosmic Nebula Clouds
+    this.nebulaGroup = new THREE.Group();
+    const nebulaMat = new THREE.MeshBasicMaterial({
+      color: 0x6366f1,
+      transparent: true,
+      opacity: 0.08,
+      blending: THREE.AdditiveBlending,
+    });
+    for (let i = 0; i < 6; i++) {
+      const neb = new THREE.Mesh(new THREE.SphereGeometry(28, 8, 8), nebulaMat);
+      neb.position.set((Math.random() - 0.5) * 160, (Math.random() - 0.5) * 90, -120 - Math.random() * 80);
+      neb.scale.set(2.4, 1.2, 1.8);
+      this.nebulaGroup.add(neb);
+    }
+    this.group.add(this.nebulaGroup);
+
+    // 3. Planets & Elliptical Orbital Splines
     const planetConfigs = [
       { name: "Mercury", radius: 0.85, color: 0x94a3b8, orbit: 19, speed: 1.25, atmosphere: 0x64748b },
       { name: "Earth", radius: 1.7, color: 0x38bdf8, orbit: 34, speed: 0.85, atmosphere: 0x0284c7 },
@@ -127,7 +145,7 @@ export class SolarWorld {
       });
     });
 
-    // 3. 3D Asteroid Belt (Instanced Rock Chunks)
+    // 4. 3D Asteroid Belt (Instanced Rock Chunks)
     const astCount = isMobile ? 220 : 650;
     const astGeo = new THREE.BufferGeometry();
     this.asteroidPos = new Float32Array(astCount * 3);
@@ -145,27 +163,42 @@ export class SolarWorld {
     );
     this.group.add(this.asteroidBelt);
 
-    // 4. Starfield (2,800 deep cosmic stars)
-    const starCount = isMobile ? 900 : 2800;
-    const starGeo = new THREE.BufferGeometry();
-    const starPos = new Float32Array(starCount * 3);
-    for (let i = 0; i < starCount; i++) {
-      starPos[i * 3] = (Math.random() - 0.5) * 380;
-      starPos[i * 3 + 1] = (Math.random() - 0.5) * 320;
-      starPos[i * 3 + 2] = -50 - Math.random() * 320;
+    // 5. 3-Tier Starfield
+    const farCount = isMobile ? 800 : 2000;
+    const farGeo = new THREE.BufferGeometry();
+    const farPos = new Float32Array(farCount * 3);
+    for (let i = 0; i < farCount; i++) {
+      farPos[i * 3] = (Math.random() - 0.5) * 400;
+      farPos[i * 3 + 1] = (Math.random() - 0.5) * 350;
+      farPos[i * 3 + 2] = -80 - Math.random() * 350;
     }
-    starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
-    this.starfield = new THREE.Points(
-      starGeo,
-      new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, transparent: true, opacity: 0.9 })
+    farGeo.setAttribute("position", new THREE.BufferAttribute(farPos, 3));
+    this.starfieldFar = new THREE.Points(
+      farGeo,
+      new THREE.PointsMaterial({ color: 0xffffff, size: 1.2, transparent: true, opacity: 0.85 })
     );
-    this.group.add(this.starfield);
+    this.group.add(this.starfieldFar);
+
+    const nearCount = isMobile ? 200 : 800;
+    const nearGeo = new THREE.BufferGeometry();
+    const nearPos = new Float32Array(nearCount * 3);
+    for (let i = 0; i < nearCount; i++) {
+      nearPos[i * 3] = (Math.random() - 0.5) * 220;
+      nearPos[i * 3 + 1] = (Math.random() - 0.5) * 200;
+      nearPos[i * 3 + 2] = 20 - Math.random() * 150;
+    }
+    nearGeo.setAttribute("position", new THREE.BufferAttribute(nearPos, 3));
+    this.starfieldNear = new THREE.Points(
+      nearGeo,
+      new THREE.PointsMaterial({ color: 0xbae6fd, size: 2.1, transparent: true, opacity: 0.95 })
+    );
+    this.group.add(this.starfieldNear);
   }
 
   public update(params: WorldUpdateParams): void {
     const { scrollProgress, scrollVelocity, mouseX, mouseY, delta, elapsed, reducedMotion } = params;
 
-    // 1. Orbital Space Camera Fly-Through (z: +50 -> -145)
+    // 1. Orbital Space Camera Fly-Through
     const targetZ = 50 - scrollProgress * 165;
     const targetY = 15 - scrollProgress * 42;
     const targetX = Math.sin(scrollProgress * Math.PI) * 22 + mouseX * 8;
@@ -194,7 +227,6 @@ export class SolarWorld {
       this.asteroidBelt.rotation.y += delta * 0.055;
       this.sunMesh.rotation.y += delta * 0.12;
 
-      // Solar Corona pulsation
       const coronaPulse = 1.0 + Math.sin(elapsed * 2.0) * 0.05;
       this.sunCorona.scale.setScalar(coronaPulse);
     }

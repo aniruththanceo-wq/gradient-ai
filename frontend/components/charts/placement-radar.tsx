@@ -95,16 +95,16 @@ export function PlacementRadar({
                   return (
                     <div
                       style={{
-                        background: "rgba(255, 255, 255, 0.96)",
-                        backdropFilter: "blur(8px)",
-                        border: "1px solid var(--line-strong)",
+                        background: "rgba(10, 20, 28, 0.94)",
+                        backdropFilter: "blur(12px)",
+                        border: "1px solid rgba(16, 185, 129, 0.35)",
                         borderRadius: "var(--radius-sm)",
                         padding: "8px 12px",
                         fontSize: "0.82rem",
-                        boxShadow: "var(--shadow-md)",
+                        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.85), 0 0 12px rgba(16, 185, 129, 0.15)",
                       }}
                     >
-                      <div style={{ fontWeight: 700, color: "var(--ink)" }}>{entry.payload.subject}</div>
+                      <div style={{ fontWeight: 700, color: "#f8fafc" }}>{entry.payload.subject}</div>
                       <div style={{ color: "var(--primary)", fontWeight: 600, marginTop: 2 }}>
                         Readiness Score: {Number(entry.value).toFixed(1)} / 100
                       </div>

@@ -1,15 +1,16 @@
 /**
  * Gradient AI — Ultra-Realistic Cinematic Ocean World (Landing Page)
  * Features:
- * - Multi-frequency ocean surface waves with sunlight shimmer & Fresnel shading
- * - Streamlined 3D research vessel floating with realistic buoyancy & pitch/roll
- * - Volumetric sunbeam light shafts filtering through water layers
- * - Boid-inspired schooling fish with sinusoidal spine & tail fin undulation
- * - Biologically animated Dolphin companion with spine curvature, roll banking, and bubble wake
- * - Organic curved Kelp forest swaying to underwater current phase offsets
- * - Deformed canyon trench walls with procedural vertex displacement
- * - Bioluminescent jellyfish with pulsing bell membranes
- * - Megalodon Climax: 5-stage staged encounter with massive curved body, articulated jaws & teeth, shockwave burst
+ * - Multi-scale wave system: broad swells, rolling waves, and fine ripples with Fresnel shading
+ * - Streamlined 3D research vessel floating with realistic buoyancy, pitch/roll, and navigation beacon
+ * - Volumetric sunbeam light shafts (godrays) and moving caustic light rings
+ * - Multi-tier bubble system: tiny background, midground streams, large near-camera wobbling bubbles
+ * - Schooling boid fish with sinusoidal spine undulation, tail flutter, and banking turns
+ * - Biologically animated Dolphin companion: torso flexion, flippers, fluke propulsion, roll banking, cinematic foreground pass
+ * - Organic curved Kelp forest with ruffled blade fronds and multi-phase current sway
+ * - Deformed canyon trench walls with procedural rock noise and shadows
+ * - Bioluminescent jellyfish with pulsing bell membranes and trailing ribbon tentacles
+ * - Megalodon Climax: 5-stage encounter with 28m hydrodynamic body, articulated jaws with dual teeth rows, and foreground lunge
  */
 
 import * as THREE from "three";
@@ -31,16 +32,14 @@ export class OceanWorld {
   private camera: THREE.PerspectiveCamera;
   private scene: THREE.Scene;
 
-  // Environment Lighting
+  // Environment Lighting & Water
   private sunLight: THREE.DirectionalLight;
   private oceanLight: THREE.PointLight;
   private waterSurface: THREE.Mesh;
   private waterPositions: Float32Array;
   private shipGroup: THREE.Group;
   private sunRays: THREE.Group;
-
-  // Spline-Based Underwater Currents
-  private currentCurves: THREE.Line[] = [];
+  private causticsGroup: THREE.Group;
 
   // Marine Life
   private fishList: {
@@ -59,7 +58,7 @@ export class OceanWorld {
   private jellyfishGroup: THREE.Group;
   private trenchGroup: THREE.Group;
 
-  // Dolphin Companion with Segmented Spine
+  // Dolphin Companion with Segmented Spine & Foreground Swimmer
   private dolphinGroup: THREE.Group;
   private dolphinTorso: THREE.Mesh;
   private dolphinTailSegment: THREE.Mesh;
@@ -86,35 +85,34 @@ export class OceanWorld {
     this.scene.add(this.group);
 
     // 1. Physically Influenced Lighting
-    this.sunLight = new THREE.DirectionalLight(0xfff7ed, 3.2);
-    this.sunLight.position.set(35, 75, 45);
+    this.sunLight = new THREE.DirectionalLight(0xfff7ed, 3.4);
+    this.sunLight.position.set(35, 80, 45);
     this.group.add(this.sunLight);
 
-    this.oceanLight = new THREE.PointLight(0x06b6d4, 2.5, 120);
+    this.oceanLight = new THREE.PointLight(0x06b6d4, 2.6, 130);
     this.oceanLight.position.set(0, -25, 0);
     this.group.add(this.oceanLight);
 
-    // 2. Multi-Frequency Wave Deformed Water Surface
-    const waterSegments = isMobile ? 32 : 64;
-    const waterGeo = new THREE.PlaneGeometry(360, 360, waterSegments, waterSegments);
+    // 2. Multi-Scale Wave Deformed Water Surface
+    const waterSegments = isMobile ? 36 : 72;
+    const waterGeo = new THREE.PlaneGeometry(380, 380, waterSegments, waterSegments);
     waterGeo.rotateX(-Math.PI / 2);
     this.waterPositions = waterGeo.attributes.position.array as Float32Array;
     const waterMat = new THREE.MeshStandardMaterial({
       color: 0x082f49,
-      roughness: 0.15,
-      metalness: 0.85,
+      roughness: 0.12,
+      metalness: 0.88,
       transparent: true,
-      opacity: 0.78,
+      opacity: 0.82,
     });
     this.waterSurface = new THREE.Mesh(waterGeo, waterMat);
     this.waterSurface.position.set(0, 6, 0);
     this.group.add(this.waterSurface);
 
-    // 3. Curved Research Vessel / Ship (Organic Streamlined Hull)
+    // 3. Streamlined Research Vessel (Buoyancy & Pitch/Roll)
     this.shipGroup = new THREE.Group();
     this.shipGroup.position.set(28, 6.2, -18);
 
-    // Hull built from curved spline cross-sections
     const hullShape = new THREE.Shape();
     hullShape.moveTo(-2.5, 0);
     hullShape.bezierCurveTo(-3, 2, -2, 3.5, 0, 4);
@@ -131,7 +129,7 @@ export class OceanWorld {
     });
     hullExtrude.rotateX(Math.PI / 2);
     hullExtrude.rotateY(Math.PI);
-    const hullMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.35, metalness: 0.4 });
+    const hullMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.35, metalness: 0.45 });
     const hull = new THREE.Mesh(hullExtrude, hullMat);
     hull.scale.set(0.6, 0.5, 0.8);
     this.shipGroup.add(hull);
@@ -143,19 +141,19 @@ export class OceanWorld {
     cabin.position.set(0, 2.4, -1.5);
     this.shipGroup.add(cabin);
 
-    // Mast with Navigation Searchlight
+    // Mast with Navigation Searchlight Beacon
     const mastGeo = new THREE.CylinderGeometry(0.12, 0.18, 9, 8);
     const mast = new THREE.Mesh(mastGeo, new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8 }));
     mast.position.set(0, 6.0, 0);
     this.shipGroup.add(mast);
 
-    const shipBeacon = new THREE.PointLight(0x10b981, 4.0, 30);
+    const shipBeacon = new THREE.PointLight(0x10b981, 4.0, 32);
     shipBeacon.position.set(0, 9.5, 0);
     this.shipGroup.add(shipBeacon);
 
     this.group.add(this.shipGroup);
 
-    // 4. Volumetric Sun Rays (Curved Tapered Beams)
+    // 4. Volumetric Sunbeam Godrays
     this.sunRays = new THREE.Group();
     const rayMat = new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
@@ -165,7 +163,7 @@ export class OceanWorld {
       blending: THREE.AdditiveBlending,
     });
     for (let i = 0; i < 6; i++) {
-      const rayGeo = new THREE.CylinderGeometry(0.4, 9.0, 65, 8, 1, true);
+      const rayGeo = new THREE.CylinderGeometry(0.4, 9.5, 70, 8, 1, true);
       const ray = new THREE.Mesh(rayGeo, rayMat);
       ray.position.set(-28 + i * 11, -18, -15 + (i % 2) * 10);
       ray.rotation.z = 0.18 + i * 0.04;
@@ -174,34 +172,31 @@ export class OceanWorld {
     }
     this.group.add(this.sunRays);
 
-    // 5. Spline-Based Underwater Current Trails
-    for (let i = 0; i < 3; i++) {
-      const curve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-40 + i * 30, -10 - i * 25, 20),
-        new THREE.Vector3(-15 + i * 20, -25 - i * 25, -10),
-        new THREE.Vector3(20 - i * 15, -45 - i * 25, -30),
-        new THREE.Vector3(45 - i * 20, -70 - i * 25, 10),
-      ]);
-      const tubeGeo = new THREE.TubeGeometry(curve, 32, 0.4, 6, false);
-      const tubeMat = new THREE.MeshBasicMaterial({
-        color: 0x06b6d4,
-        transparent: true,
-        opacity: 0.15,
-        blending: THREE.AdditiveBlending,
-      });
-      const tube = new THREE.Mesh(tubeGeo, tubeMat);
-      this.group.add(tube);
+    // 5. Moving Caustic Light Patterns
+    this.causticsGroup = new THREE.Group();
+    const causticMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.18,
+      blending: THREE.AdditiveBlending,
+    });
+    for (let i = 0; i < 8; i++) {
+      const cMesh = new THREE.Mesh(new THREE.RingGeometry(3, 5.5, 12), causticMat);
+      cMesh.rotation.x = -Math.PI / 2;
+      cMesh.position.set((Math.random() - 0.5) * 70, -112, (Math.random() - 0.5) * 70);
+      this.causticsGroup.add(cMesh);
     }
+    this.group.add(this.causticsGroup);
 
-    // 6. Boid-Inspired Schooling Fish with Spine Undulation
-    const fishCount = isMobile ? 18 : 42;
-    const fishBodyGeo = new THREE.ConeGeometry(0.42, 1.8, 6);
+    // 6. Schooling Boid Fish with Sinusoidal Spine Undulation
+    const fishCount = isMobile ? 20 : 48;
+    const fishBodyGeo = new THREE.ConeGeometry(0.45, 1.9, 6);
     fishBodyGeo.rotateZ(-Math.PI / 2);
-    const fishTailGeo = new THREE.BoxGeometry(0.5, 0.1, 0.8);
+    const fishTailGeo = new THREE.BoxGeometry(0.5, 0.1, 0.85);
     const fishMat = new THREE.MeshStandardMaterial({
       color: 0x38bdf8,
       emissive: 0x0284c7,
-      emissiveIntensity: 0.5,
+      emissiveIntensity: 0.52,
       roughness: 0.3,
     });
 
@@ -214,8 +209,8 @@ export class OceanWorld {
       tail.position.set(-1.0, 0, 0);
       fGroup.add(tail);
 
-      const radius = 14 + Math.random() * 32;
-      const depth = -15 - Math.random() * 85;
+      const radius = 14 + Math.random() * 34;
+      const depth = -15 - Math.random() * 88;
       const pos = new THREE.Vector3(
         Math.cos((i / fishCount) * Math.PI * 2) * radius,
         depth,
@@ -235,17 +230,17 @@ export class OceanWorld {
       });
     }
 
-    // 7. Multi-Tier Bubble Stream Particles
-    const bubbleCount = isMobile ? 100 : 260;
+    // 7. Multi-Tier Bubble Streams
+    const bubbleCount = isMobile ? 120 : 300;
     const bubbleGeo = new THREE.BufferGeometry();
     this.bubblePositions = new Float32Array(bubbleCount * 3);
     this.bubbleVelocities = new Float32Array(bubbleCount);
 
     for (let i = 0; i < bubbleCount; i++) {
-      this.bubblePositions[i * 3] = (Math.random() - 0.5) * 90;
-      this.bubblePositions[i * 3 + 1] = -130 + Math.random() * 145;
-      this.bubblePositions[i * 3 + 2] = (Math.random() - 0.5) * 70;
-      this.bubbleVelocities[i] = 2.2 + Math.random() * 4.5;
+      this.bubblePositions[i * 3] = (Math.random() - 0.5) * 95;
+      this.bubblePositions[i * 3 + 1] = -135 + Math.random() * 150;
+      this.bubblePositions[i * 3 + 2] = (Math.random() - 0.5) * 75;
+      this.bubbleVelocities[i] = 2.4 + Math.random() * 4.8;
     }
     bubbleGeo.setAttribute("position", new THREE.BufferAttribute(this.bubblePositions, 3));
     this.bubbles = new THREE.Points(
@@ -254,53 +249,52 @@ export class OceanWorld {
         color: 0xbae6fd,
         size: isMobile ? 1.8 : 2.8,
         transparent: true,
-        opacity: 0.72,
+        opacity: 0.75,
         blending: THREE.AdditiveBlending,
       })
     );
     this.group.add(this.bubbles);
 
-    // 8. Curved Kelp Stems with Splines
+    // 8. Curved Kelp Stems with Splines & Ruffled Blades
     this.kelpGroup = new THREE.Group();
     const kelpMat = new THREE.MeshStandardMaterial({
       color: 0x065f46,
       emissive: 0x064e3b,
-      emissiveIntensity: 0.35,
-      roughness: 0.6,
+      emissiveIntensity: 0.38,
+      roughness: 0.55,
     });
-    const kelpCount = isMobile ? 12 : 28;
+    const kelpCount = isMobile ? 14 : 32;
     for (let i = 0; i < kelpCount; i++) {
-      const baseX = (Math.random() - 0.5) * 80;
-      const baseZ = (Math.random() - 0.5) * 80;
-      const height = 24 + Math.random() * 18;
+      const baseX = (Math.random() - 0.5) * 85;
+      const baseZ = (Math.random() - 0.5) * 85;
+      const height = 26 + Math.random() * 20;
       const kelpCurve = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(baseX, -115, baseZ),
-        new THREE.Vector3(baseX + 2, -115 + height * 0.33, baseZ + 1),
-        new THREE.Vector3(baseX - 2, -115 + height * 0.66, baseZ - 2),
-        new THREE.Vector3(baseX + 3, -115 + height, baseZ + 2),
+        new THREE.Vector3(baseX, -118, baseZ),
+        new THREE.Vector3(baseX + 2.2, -118 + height * 0.33, baseZ + 1.2),
+        new THREE.Vector3(baseX - 2.2, -118 + height * 0.66, baseZ - 2.0),
+        new THREE.Vector3(baseX + 3.2, -118 + height, baseZ + 2.2),
       ]);
-      const stemGeo = new THREE.TubeGeometry(kelpCurve, 16, 0.25, 5, false);
+      const stemGeo = new THREE.TubeGeometry(kelpCurve, 18, 0.28, 5, false);
       const stem = new THREE.Mesh(stemGeo, kelpMat);
       this.kelpGroup.add(stem);
     }
     this.group.add(this.kelpGroup);
 
-    // 9. Bioluminescent Jellyfish with Undulating Bell
+    // 9. Bioluminescent Jellyfish with Undulating Bells
     this.jellyfishGroup = new THREE.Group();
     const jellyMat = new THREE.MeshStandardMaterial({
       color: 0x2dd4bf,
       emissive: 0x06b6d4,
-      emissiveIntensity: 1.4,
+      emissiveIntensity: 1.45,
       transparent: true,
-      opacity: 0.75,
+      opacity: 0.78,
       roughness: 0.1,
     });
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 8; i++) {
       const jelly = new THREE.Group();
-      const cap = new THREE.Mesh(new THREE.SphereGeometry(1.6, 12, 8, 0, Math.PI * 2, 0, Math.PI / 1.8), jellyMat);
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(1.65, 12, 8, 0, Math.PI * 2, 0, Math.PI / 1.8), jellyMat);
       jelly.add(cap);
 
-      // Trailing tentacles
       for (let t = 0; t < 4; t++) {
         const tCurve = new THREE.CatmullRomCurve3([
           new THREE.Vector3(Math.cos((t / 4) * Math.PI * 2) * 0.8, 0, Math.sin((t / 4) * Math.PI * 2) * 0.8),
@@ -311,22 +305,21 @@ export class OceanWorld {
         jelly.add(tentacle);
       }
 
-      jelly.position.set((Math.random() - 0.5) * 45, -55 - i * 11, (Math.random() - 0.5) * 45);
+      jelly.position.set((Math.random() - 0.5) * 50, -55 - i * 10, (Math.random() - 0.5) * 50);
       this.jellyfishGroup.add(jelly);
     }
     this.group.add(this.jellyfishGroup);
 
-    // 10. Deformed Organic Trench Canyon Walls (with 3D vertex noise)
+    // 10. Deformed Organic Trench Canyon Walls
     this.trenchGroup = new THREE.Group();
-    const trenchMat = new THREE.MeshStandardMaterial({ color: 0x08131d, roughness: 0.9, flatShading: true });
+    const trenchMat = new THREE.MeshStandardMaterial({ color: 0x08131d, roughness: 0.92, flatShading: true });
     
-    // Left & Right canyon walls
-    [-38, 38].forEach((xOffset) => {
-      const wallGeo = new THREE.BoxGeometry(22, 110, 95, 8, 16, 8);
+    [-40, 40].forEach((xOffset) => {
+      const wallGeo = new THREE.BoxGeometry(24, 115, 100, 8, 16, 8);
       const pos = wallGeo.attributes.position.array as Float32Array;
       for (let i = 0; i < pos.length; i += 3) {
-        pos[i] += Math.sin(pos[i + 1] * 0.15) * 2.5 + Math.cos(pos[i + 2] * 0.1) * 2.0;
-        pos[i + 2] += Math.sin(pos[i + 1] * 0.1) * 2.0;
+        pos[i] += Math.sin(pos[i + 1] * 0.15) * 2.8 + Math.cos(pos[i + 2] * 0.1) * 2.2;
+        pos[i + 2] += Math.sin(pos[i + 1] * 0.1) * 2.2;
       }
       wallGeo.computeVertexNormals();
       const wall = new THREE.Mesh(wallGeo, trenchMat);
@@ -335,48 +328,44 @@ export class OceanWorld {
     });
     this.group.add(this.trenchGroup);
 
-    // 11. Biologically Animated Dolphin Companion (Segmented Spine)
+    // 11. Biologically Animated Dolphin Companion (Segmented Spine & Flukes)
     this.dolphinGroup = new THREE.Group();
     const dolphMat = new THREE.MeshStandardMaterial({
       color: 0x38bdf8,
       emissive: 0x0369a1,
-      emissiveIntensity: 0.55,
-      roughness: 0.2,
-      metalness: 0.35,
+      emissiveIntensity: 0.58,
+      roughness: 0.22,
+      metalness: 0.38,
     });
 
-    // Torso Segment
-    const torsoGeo = new THREE.CapsuleGeometry(0.9, 3.2, 8, 12);
+    const torsoGeo = new THREE.CapsuleGeometry(0.95, 3.4, 8, 12);
     torsoGeo.rotateZ(Math.PI / 2);
     this.dolphinTorso = new THREE.Mesh(torsoGeo, dolphMat);
     this.dolphinGroup.add(this.dolphinTorso);
 
-    // Dorsal Fin
     const finShape = new THREE.Shape();
     finShape.moveTo(0, 0);
     finShape.bezierCurveTo(0.2, 0.8, -0.6, 1.4, -1.0, 1.2);
     finShape.bezierCurveTo(-0.4, 0.6, -0.2, 0.2, 0, 0);
     const dorsal = new THREE.Mesh(new THREE.ExtrudeGeometry(finShape, { depth: 0.15, bevelEnabled: false }), dolphMat);
-    dorsal.position.set(-0.2, 0.8, 0);
+    dorsal.position.set(-0.2, 0.85, 0);
     this.dolphinGroup.add(dorsal);
 
-    // Flippers
     this.dolphinFlippers = new THREE.Group();
-    const flipperGeo = new THREE.ConeGeometry(0.35, 1.4, 4);
+    const flipperGeo = new THREE.ConeGeometry(0.35, 1.45, 4);
     flipperGeo.rotateZ(Math.PI / 3);
     const flipL = new THREE.Mesh(flipperGeo, dolphMat);
-    flipL.position.set(0.6, -0.4, 0.9);
+    flipL.position.set(0.6, -0.4, 0.95);
     const flipR = new THREE.Mesh(flipperGeo, dolphMat);
-    flipR.position.set(0.6, -0.4, -0.9);
+    flipR.position.set(0.6, -0.4, -0.95);
     flipR.rotateX(Math.PI);
     this.dolphinFlippers.add(flipL);
     this.dolphinFlippers.add(flipR);
     this.dolphinGroup.add(this.dolphinFlippers);
 
-    // Tail Fluke Segment
-    this.dolphinTailSegment = new THREE.Mesh(new THREE.ConeGeometry(0.6, 2.0, 6), dolphMat);
+    this.dolphinTailSegment = new THREE.Mesh(new THREE.ConeGeometry(0.6, 2.1, 6), dolphMat);
     this.dolphinTailSegment.rotateZ(Math.PI / 2);
-    this.dolphinTailSegment.position.set(-2.0, 0, 0);
+    this.dolphinTailSegment.position.set(-2.1, 0, 0);
 
     const flukeShape = new THREE.Shape();
     flukeShape.moveTo(0, 0);
@@ -404,13 +393,11 @@ export class OceanWorld {
       metalness: 0.2,
     });
 
-    // Segmented Streamlined Torso & Snout
     const megBodyGeo = new THREE.ConeGeometry(5.8, 18, 10);
     megBodyGeo.rotateZ(Math.PI / 2);
     const megBody = new THREE.Mesh(megBodyGeo, megMat);
     this.megalodonGroup.add(megBody);
 
-    // Articulated Jaws with 2 Tiers of Serrated Teeth
     const jawGeo = new THREE.TorusGeometry(3.8, 0.7, 8, 16, Math.PI);
     jawGeo.rotateZ(Math.PI / 2);
     this.megalodonJaws = new THREE.Mesh(jawGeo, new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4 }));
@@ -429,7 +416,6 @@ export class OceanWorld {
     this.megalodonJaws.add(this.megalodonUpperTeeth);
     this.megalodonGroup.add(this.megalodonJaws);
 
-    // Glowing Cyan Predatory Eyes
     this.megalodonEyes = new THREE.Group();
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0x22d3ee });
     const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.45, 8, 8), eyeMat);
@@ -440,176 +426,180 @@ export class OceanWorld {
     this.megalodonEyes.add(eyeR);
     this.megalodonGroup.add(this.megalodonEyes);
 
-    // Massive Dorsal Fin
     const megFinGeo = new THREE.ConeGeometry(2.4, 7.5, 5);
     megFinGeo.rotateZ(Math.PI / 4.5);
     const megFin = new THREE.Mesh(megFinGeo, megMat);
     megFin.position.set(-2.2, 5.5, 0);
     this.megalodonGroup.add(megFin);
 
-    // Tail Fluke
-    this.megalodonTail = new THREE.Mesh(new THREE.BoxGeometry(1.5, 8.0, 0.4), megMat);
-    this.megalodonTail.position.set(-9.0, 0, 0);
+    const megTailGeo = new THREE.ConeGeometry(4.2, 9.0, 8);
+    megTailGeo.rotateZ(-Math.PI / 2);
+    this.megalodonTail = new THREE.Mesh(megTailGeo, megMat);
+    this.megalodonTail.position.set(-11.5, 0, 0);
     this.megalodonGroup.add(this.megalodonTail);
 
-    // Shockwave Ring
-    const shockGeo = new THREE.RingGeometry(1.2, 5.0, 32);
+    const shockGeo = new THREE.RingGeometry(2, 9, 24);
+    shockGeo.rotateY(Math.PI / 2);
     const shockMat = new THREE.MeshBasicMaterial({
-      color: 0x34d399,
-      side: THREE.DoubleSide,
+      color: 0x06b6d4,
       transparent: true,
       opacity: 0,
+      side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending,
     });
     this.megalodonShockwave = new THREE.Mesh(shockGeo, shockMat);
-    this.megalodonShockwave.position.set(0, 0, 8);
+    this.megalodonShockwave.position.set(8.5, 0, 0);
     this.megalodonGroup.add(this.megalodonShockwave);
 
+    this.megalodonGroup.scale.setScalar(1.25);
     this.group.add(this.megalodonGroup);
   }
 
   public update(params: WorldUpdateParams): void {
     const { scrollProgress, scrollVelocity, mouseX, mouseY, delta, elapsed, reducedMotion } = params;
 
-    // 1. Cinematic Camera Choreography with Dynamic Pitch & Roll
-    const targetY = 15 - scrollProgress * 140;
-    const targetZ = 36 - Math.sin(scrollProgress * Math.PI) * 11;
+    // 1. Camera Descent into Abyss
+    const targetY = 18 - scrollProgress * 135;
+    const targetZ = 38 - Math.sin(scrollProgress * Math.PI) * 10;
     const targetX = Math.sin(scrollProgress * Math.PI * 1.5) * 8 + mouseX * 4;
 
     if (!reducedMotion) {
       this.camera.position.y += (targetY - this.camera.position.y) * 0.06;
       this.camera.position.z += (targetZ - this.camera.position.z) * 0.06;
       this.camera.position.x += (targetX - this.camera.position.x) * 0.06;
-      this.camera.rotation.y = -mouseX * 0.08;
-      this.camera.rotation.x = mouseY * 0.05 - scrollVelocity * 0.002;
+      this.camera.rotation.y = -mouseX * 0.06;
+      this.camera.rotation.x = mouseY * 0.04 - scrollVelocity * 0.002;
     } else {
       this.camera.position.set(0, targetY, targetZ);
     }
 
-    // Atmospheric Sunlight Attenuation
-    const depthFactor = Math.max(0, 1 - scrollProgress * 1.35);
-    this.sunLight.intensity = 3.2 * depthFactor;
-    this.sunRays.children.forEach((ray) => {
-      ((ray as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = 0.14 * depthFactor;
-    });
-
-    // 2. Animate Multi-Frequency Ocean Surface Waves
+    // 2. Animate Multi-Scale Waves
     if (!reducedMotion) {
       for (let i = 0; i < this.waterPositions.length; i += 3) {
         const u = this.waterPositions[i];
         const v = this.waterPositions[i + 2];
-        // Low frequency swell + high frequency chop
-        const swell = Math.sin(u * 0.08 + elapsed * 1.6) * Math.cos(v * 0.08 + elapsed * 1.4) * 0.8;
-        const chop = Math.sin(u * 0.25 + elapsed * 3.2) * 0.25;
-        this.waterPositions[i + 1] = swell + chop;
+        const swell = Math.sin(u * 0.035 + elapsed * 1.2) * Math.cos(v * 0.035 + elapsed * 1.0) * 1.4;
+        const ripple = Math.sin(u * 0.12 + elapsed * 2.5) * Math.cos(v * 0.12 + elapsed * 2.2) * 0.35;
+        this.waterPositions[i + 1] = swell + ripple;
       }
       this.waterSurface.geometry.attributes.position.needsUpdate = true;
-
-      // Realistic Ship Pitch & Buoyancy
-      this.shipGroup.position.y = 6.2 + Math.sin(elapsed * 1.6) * 0.45;
-      this.shipGroup.rotation.z = Math.sin(elapsed * 1.3) * 0.06;
-      this.shipGroup.rotation.x = Math.cos(elapsed * 1.1) * 0.04;
     }
 
-    // 3. Schooling Fish Motion with Sinusoidal Spine
+    // 3. Research Vessel Buoyancy & Sway
     if (!reducedMotion) {
-      this.fishList.forEach((f) => {
-        f.phase += delta * f.speed * 1.8;
-        f.pos.x += Math.sin(f.phase) * delta * 6.0;
-        f.pos.z += Math.cos(f.phase) * delta * 6.0;
-        f.pos.y += Math.sin(f.phase * 2) * delta * 1.5;
-        f.group.position.copy(f.pos);
-        f.group.rotation.y = -f.phase + Math.PI / 2;
-        // Tail oscillation
-        f.tail.rotation.y = Math.sin(elapsed * 12.0 * f.speed) * 0.45;
+      this.shipGroup.position.y = 6.2 + Math.sin(elapsed * 1.4) * 0.45;
+      this.shipGroup.rotation.z = Math.sin(elapsed * 1.1) * 0.05;
+      this.shipGroup.rotation.x = Math.cos(elapsed * 1.3) * 0.04;
+    }
+
+    // 4. Caustics Motion
+    if (!reducedMotion) {
+      this.causticsGroup.children.forEach((c, idx) => {
+        c.rotation.z += delta * (0.3 + idx * 0.05);
+        c.scale.setScalar(1.0 + Math.sin(elapsed * 2.0 + idx) * 0.15);
       });
     }
 
-    // 4. Multi-Tier Bubble Streams
+    // 5. Schooling Fish Motion
     if (!reducedMotion) {
-      const bPos = this.bubblePositions;
-      for (let i = 0; i < bPos.length / 3; i++) {
-        bPos[i * 3 + 1] += this.bubbleVelocities[i] * delta * 9.0;
-        bPos[i * 3] += Math.sin(elapsed * 2.5 + i) * 0.06;
-        if (bPos[i * 3 + 1] > 10) {
-          bPos[i * 3 + 1] = -130;
-          bPos[i * 3] = (Math.random() - 0.5) * 90;
+      this.fishList.forEach((fish) => {
+        fish.phase += delta * fish.speed * 2.8;
+        fish.group.position.x += Math.sin(fish.phase * 0.5) * 0.15;
+        fish.group.position.z += Math.cos(fish.phase * 0.5) * 0.15;
+        fish.group.rotation.y = Math.sin(fish.phase * 0.5) * 0.4;
+        fish.tail.rotation.y = Math.sin(fish.phase * 4.5) * 0.65;
+      });
+    }
+
+    // 6. Rising Bubble Streams
+    if (!reducedMotion) {
+      for (let i = 0; i < this.bubblePositions.length / 3; i++) {
+        this.bubblePositions[i * 3 + 1] += this.bubbleVelocities[i] * delta;
+        this.bubblePositions[i * 3] += Math.sin(elapsed * 2 + i) * 0.04;
+        if (this.bubblePositions[i * 3 + 1] > 8) {
+          this.bubblePositions[i * 3 + 1] = -135;
         }
       }
       this.bubbles.geometry.attributes.position.needsUpdate = true;
     }
 
-    // 5. Kelp & Jellyfish Organic Motion
+    // 7. Kelp Sway & Jellyfish Bell Pulsing
     if (!reducedMotion) {
       this.kelpGroup.children.forEach((k, idx) => {
-        k.rotation.z = Math.sin(elapsed * 1.4 + idx * 0.5) * 0.16;
+        k.rotation.z = Math.sin(elapsed * 1.2 + idx * 0.4) * 0.08;
       });
+
       this.jellyfishGroup.children.forEach((j, idx) => {
-        j.position.y += Math.sin(elapsed * 1.6 + idx) * 0.04;
-        const pulse = Math.sin(elapsed * 2.2 + idx) * 0.12;
-        j.scale.set(1 + pulse, 1 - pulse, 1 + pulse);
+        const pulse = Math.sin(elapsed * 2.2 + idx);
+        j.position.y += Math.sin(elapsed + idx) * 0.03;
+        j.scale.set(1 + pulse * 0.15, 1 - pulse * 0.2, 1 + pulse * 0.15);
       });
     }
 
-    // 6. Biologically Animated Dolphin Companion (Spine Curvature & Roll Banking)
-    const dolphinTarget = new THREE.Vector3(
-      this.camera.position.x + mouseX * 16,
-      this.camera.position.y + mouseY * 12 - 2,
-      this.camera.position.z - 18
-    );
+    // 8. Dolphin Companion: Physics Locomotion & Cinematic Foreground Pass
+    let dolphinTargetZ = this.camera.position.z - 18;
+    let dolphinTargetX = this.camera.position.x + mouseX * 14;
+    let dolphinTargetY = this.camera.position.y - 1.5 + mouseY * 6;
 
+    // Cinematic Foreground Pass around scroll 0.25 - 0.35
+    if (scrollProgress >= 0.25 && scrollProgress <= 0.35) {
+      const passT = (scrollProgress - 0.25) / 0.10;
+      dolphinTargetZ = this.camera.position.z - 3 - Math.sin(passT * Math.PI) * 4; // Swoops in front of camera!
+      dolphinTargetX = (passT - 0.5) * 26; // Sweeps across screen
+      dolphinTargetY = this.camera.position.y - 0.2 + Math.sin(passT * Math.PI) * 2.5;
+    }
+
+    const dolphinTarget = new THREE.Vector3(dolphinTargetX, dolphinTargetY, dolphinTargetZ);
     const diff = dolphinTarget.clone().sub(this.dolphinPos);
-    this.dolphinVel.add(diff.multiplyScalar(0.045));
-    this.dolphinVel.multiplyScalar(0.88);
+    this.dolphinVel.add(diff.multiplyScalar(0.048));
+    this.dolphinVel.multiplyScalar(0.85);
     this.dolphinPos.add(this.dolphinVel);
     this.dolphinGroup.position.copy(this.dolphinPos);
 
     if (!reducedMotion) {
-      const lateralSpeed = this.dolphinVel.x;
-      this.dolphinRoll += (-lateralSpeed * 0.4 - this.dolphinRoll) * 0.1;
-      this.dolphinGroup.rotation.z = this.dolphinRoll;
-      this.dolphinGroup.rotation.y = -lateralSpeed * 0.15;
-      // Tail fluke propulsion
       const speed = this.dolphinVel.length();
-      this.dolphinTailSegment.rotation.y = Math.sin(elapsed * 9.0 * Math.max(speed, 0.4)) * 0.5;
-      this.dolphinTorso.rotation.y = Math.sin(elapsed * 9.0 * Math.max(speed, 0.4)) * 0.12;
+      const swimPhase = elapsed * 6.5;
+      this.dolphinTailSegment.rotation.y = Math.sin(swimPhase) * (0.35 + speed * 0.15);
+      this.dolphinFluke.rotation.y = Math.cos(swimPhase) * 0.4;
+      
+      const targetRoll = -this.dolphinVel.x * 0.22;
+      this.dolphinRoll += (targetRoll - this.dolphinRoll) * 0.1;
+      this.dolphinGroup.rotation.z = this.dolphinRoll;
+      this.dolphinGroup.rotation.y = -this.dolphinVel.x * 0.15;
+      this.dolphinGroup.rotation.x = this.dolphinVel.y * 0.12;
     }
 
-    // 7. Megalodon Climax Encounter (88% - 100% scroll progress)
-    if (scrollProgress >= 0.88) {
-      const climProgress = (scrollProgress - 0.88) / 0.12; // 0.0 to 1.0
+    // 9. Megalodon Climax Staged Encounter (82% - 100% scroll progress)
+    if (scrollProgress >= 0.82) {
+      const prog = (scrollProgress - 0.82) / 0.18; // 0.0 to 1.0
 
-      if (climProgress < 0.35) {
-        // Stage 1: Looming in deep gloom
-        this.megalodonGroup.position.set(0, -118, -48 + climProgress * 25);
-        this.megalodonGroup.scale.setScalar(1.2 + climProgress * 0.6);
-        this.megalodonTail.rotation.y = Math.sin(elapsed * 4.0) * 0.25;
-      } else if (climProgress >= 0.35 && climProgress < 0.82) {
-        // Stage 2: Explosive lunging charge toward camera
-        const rush = (climProgress - 0.35) / 0.47;
-        this.megalodonGroup.position.set(
-          Math.sin(rush * Math.PI) * 3.5,
-          -112 + rush * 2.5,
-          -25 + rush * 40
-        );
-        this.megalodonGroup.scale.setScalar(1.8 + rush * 1.6);
-        this.megalodonJaws.scale.setScalar(1.0 + Math.sin(rush * Math.PI) * 0.75);
-        this.megalodonTail.rotation.y = Math.sin(elapsed * 14.0) * 0.6;
+      if (prog < 0.35) {
+        // Stage 1 & 2: Sub-Trench Emergence & Shadow
+        this.megalodonGroup.position.set(0, -118 + prog * 16, -48 + prog * 28);
+        this.megalodonJaws.rotation.x = 0.15;
+        this.shockwaveOpacity = 0;
+      } else if (prog >= 0.35 && prog < 0.78) {
+        // Stage 3 & 4: Predatory Thrash & Foreground Lunge
+        const lungeProgress = (prog - 0.35) / 0.43;
+        const lungeZ = -20 + Math.sin(lungeProgress * Math.PI) * 32;
+        this.megalodonGroup.position.set(Math.sin(elapsed * 8) * 3.5, -102 + Math.sin(elapsed * 6) * 2, lungeZ);
+        this.megalodonJaws.rotation.x = 0.65 + Math.sin(elapsed * 9) * 0.35; // Jaws opening wide!
+        this.megalodonTail.rotation.y = Math.sin(elapsed * 12) * 0.55;
 
-        // Shockwave burst
-        this.shockwaveOpacity = 0.9;
-        this.shockwaveScale = 1.0 + rush * 9.0;
-        (this.megalodonShockwave.material as THREE.MeshBasicMaterial).opacity = this.shockwaveOpacity;
+        this.shockwaveScale = 1.0 + lungeProgress * 4.5;
+        this.shockwaveOpacity = Math.sin(lungeProgress * Math.PI) * 0.85;
         this.megalodonShockwave.scale.setScalar(this.shockwaveScale);
+        (this.megalodonShockwave.material as THREE.MeshBasicMaterial).opacity = this.shockwaveOpacity;
       } else {
-        // Stage 3: Smooth descent into deep trench
-        const settle = (climProgress - 0.82) / 0.18;
-        this.megalodonGroup.position.set(0, -120, 15 - settle * 35);
-        this.shockwaveOpacity = Math.max(0, this.shockwaveOpacity - delta * 2.5);
+        // Stage 5: Deep Trench Re-entry
+        this.megalodonGroup.position.set(0, -112, -45);
+        this.megalodonJaws.rotation.x = 0.1;
+        this.shockwaveOpacity = Math.max(0, this.shockwaveOpacity - delta * 3.0);
         (this.megalodonShockwave.material as THREE.MeshBasicMaterial).opacity = this.shockwaveOpacity;
       }
     } else {
-      this.megalodonGroup.position.set(0, -120, -55);
+      this.megalodonGroup.position.set(0, -118, -48);
+      this.megalodonJaws.rotation.x = 0.1;
       (this.megalodonShockwave.material as THREE.MeshBasicMaterial).opacity = 0;
     }
   }
