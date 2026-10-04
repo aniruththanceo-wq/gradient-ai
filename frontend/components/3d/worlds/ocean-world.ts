@@ -10,6 +10,7 @@
  */
 
 import * as THREE from "three";
+import { disposeWorldGroup } from "./dispose";
 
 export interface WorldUpdateParams {
   scrollProgress: number;
@@ -52,6 +53,8 @@ export class OceanWorld {
   private dolphinFlippers: THREE.Group;
   private dolphinPos = new THREE.Vector3(0, 0, 15);
   private dolphinVel = new THREE.Vector3(0, 0, 0);
+  private dolphinTarget = new THREE.Vector3();
+  private waveFrame = 0;
 
   // Megalodon Climax
   private megalodonGroup: THREE.Group;
@@ -66,6 +69,8 @@ export class OceanWorld {
     this.camera = camera;
     this.group = new THREE.Group();
     this.scene.add(this.group);
+    this.scene.fog = new THREE.FogExp2(0x062235, 0.012);
+    this.group.add(new THREE.HemisphereLight(0x9ddcff, 0x03202b, 1.25));
 
     // 1. Lighting
     this.sunLight = new THREE.DirectionalLight(0xfff5e6, 2.5);
@@ -80,10 +85,13 @@ export class OceanWorld {
     const waterGeo = new THREE.PlaneGeometry(300, 300, 32, 32);
     waterGeo.rotateX(-Math.PI / 2);
     this.waterPositions = waterGeo.attributes.position.array as Float32Array;
-    const waterMat = new THREE.MeshStandardMaterial({
-      color: 0x0c4a6e,
-      roughness: 0.1,
-      metalness: 0.8,
+    const waterMat = new THREE.MeshPhysicalMaterial({
+      color: 0x075a79,
+      roughness: 0.18,
+      metalness: 0.15,
+      clearcoat: 0.85,
+      clearcoatRoughness: 0.08,
+      transmission: 0.08,
       transparent: true,
       opacity: 0.75,
       wireframe: false,
@@ -384,9 +392,13 @@ export class OceanWorld {
       for (let i = 0; i < this.waterPositions.length; i += 3) {
         const u = this.waterPositions[i];
         const v = this.waterPositions[i + 2];
-        this.waterPositions[i + 1] = Math.sin(u * 0.1 + elapsed * 1.8) * Math.cos(v * 0.1 + elapsed * 1.5) * 0.6;
+        this.waterPositions[i + 1] =
+          Math.sin(u * 0.045 + elapsed * 0.7) * 0.8 +
+          Math.cos(v * 0.075 - elapsed * 1.05) * 0.32 +
+          Math.sin((u + v) * 0.18 + elapsed * 1.7) * 0.1;
       }
       this.waterSurface.geometry.attributes.position.needsUpdate = true;
+      if (++this.waveFrame % 3 === 0) this.waterSurface.geometry.computeVertexNormals();
       this.shipGroup.position.y = 5.5 + Math.sin(elapsed * 1.5) * 0.4;
       this.shipGroup.rotation.z = Math.sin(elapsed * 1.2) * 0.05;
     }
@@ -428,14 +440,13 @@ export class OceanWorld {
     }
 
     // 6. Dolphin Cursor Companion (Swims smoothly near pointer)
-    const dolphinTarget = new THREE.Vector3(
-      this.camera.position.x + mouseX * 16,
-      this.camera.position.y + mouseY * 12 - 2,
+    this.dolphinTarget.set(
+      this.camera.position.x + mouseX * 11 + Math.sin(elapsed * 0.35) * 3,
+      this.camera.position.y + mouseY * 8 - 2 + Math.cos(elapsed * 0.55) * 1.2,
       this.camera.position.z - 18
     );
-
-    const diff = dolphinTarget.clone().sub(this.dolphinPos);
-    this.dolphinVel.add(diff.multiplyScalar(0.04));
+    this.dolphinTarget.sub(this.dolphinPos);
+    this.dolphinVel.addScaledVector(this.dolphinTarget, 0.035);
     this.dolphinVel.multiplyScalar(0.88);
     this.dolphinPos.add(this.dolphinVel);
     this.dolphinGroup.position.copy(this.dolphinPos);
@@ -490,9 +501,6 @@ export class OceanWorld {
 
   public dispose(): void {
     this.scene.remove(this.group);
-    this.waterSurface.geometry.dispose();
-    (this.waterSurface.material as THREE.Material).dispose();
-    this.bubbles.geometry.dispose();
-    (this.bubbles.material as THREE.Material).dispose();
+    disposeWorldGroup(this.group);
   }
 }

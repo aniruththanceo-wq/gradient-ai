@@ -59,8 +59,11 @@ export default function SpatialWorld({ className = "" }: SpatialWorldProps) {
         powerPreference: "high-performance",
       });
       renderer.setSize(width, height);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5));
       renderer.setClearColor(0x000000, 0);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = isMobile ? 0.9 : 1.05;
       container.appendChild(renderer.domElement);
     } catch {
       return;
@@ -86,8 +89,10 @@ export default function SpatialWorld({ className = "" }: SpatialWorldProps) {
     let scrollVelocity = 0;
     let mouseX = 0;
     let mouseY = 0;
-    let isVisible = true;
-    let animationFrameId: number;
+    let isDocumentVisible = !document.hidden;
+    let isInViewport = true;
+    let animationFrameId: number | undefined;
+    let disposed = false;
 
     const computeScroll = () => {
       const docHeight = Math.max(
@@ -118,26 +123,27 @@ export default function SpatialWorld({ className = "" }: SpatialWorldProps) {
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, width < 768 ? 1 : 1.5));
     };
 
-    const handleVisibilityChange = () => {
-      isVisible = !document.hidden;
+    const stopRendering = () => {
+      if (animationFrameId !== undefined) cancelAnimationFrame(animationFrameId);
+      animationFrameId = undefined;
     };
 
     window.addEventListener("scroll", computeScroll, { passive: true });
     window.addEventListener("mousemove", handleMouseMove, { passive: true });
     window.addEventListener("touchmove", handleTouchMove, { passive: true });
     window.addEventListener("resize", handleResize);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
     computeScroll();
 
     // 5. Render Loop
     const clock = new THREE.Clock();
     const renderLoop = () => {
-      animationFrameId = requestAnimationFrame(renderLoop);
-      if (!isVisible) return;
+      if (disposed || !isDocumentVisible || !isInViewport) {
+        animationFrameId = undefined;
+        return;
+      }
 
       const delta = Math.min(clock.getDelta(), 0.1);
       const elapsed = clock.getElapsedTime();
@@ -157,13 +163,34 @@ export default function SpatialWorld({ className = "" }: SpatialWorldProps) {
       });
 
       renderer.render(scene, camera);
+      animationFrameId = requestAnimationFrame(renderLoop);
     };
 
-    renderLoop();
+    const startRendering = () => {
+      if (!disposed && isDocumentVisible && isInViewport && animationFrameId === undefined) {
+        clock.start();
+        animationFrameId = requestAnimationFrame(renderLoop);
+      }
+    };
+    const handleVisibilityChange = () => {
+      isDocumentVisible = !document.hidden;
+      if (isDocumentVisible) startRendering();
+      else stopRendering();
+    };
+    const observer = new IntersectionObserver(([entry]) => {
+      isInViewport = entry.isIntersecting;
+      if (isInViewport) startRendering();
+      else stopRendering();
+    });
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    observer.observe(container);
+    startRendering();
 
     // 6. Cleanup on route change or unmount
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      disposed = true;
+      stopRendering();
+      observer.disconnect();
       window.removeEventListener("scroll", computeScroll);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("touchmove", handleTouchMove);

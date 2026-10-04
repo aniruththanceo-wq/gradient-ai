@@ -8,6 +8,7 @@
  */
 
 import * as THREE from "three";
+import { disposeWorldGroup } from "./dispose";
 import type { WorldUpdateParams } from "./ocean-world";
 
 export class MountainWorld {
@@ -37,12 +38,15 @@ export class MountainWorld {
   private penguinFlippers: THREE.Group;
   private penguinPos = new THREE.Vector3(0, 0, 15);
   private penguinVel = new THREE.Vector3(0, 0, 0);
+  private penguinTarget = new THREE.Vector3();
 
   constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera, isMobile: boolean) {
     this.scene = scene;
     this.camera = camera;
     this.group = new THREE.Group();
     this.scene.add(this.group);
+    this.scene.fog = new THREE.FogExp2(0x7da4bd, 0.009);
+    this.group.add(new THREE.HemisphereLight(0xdbeafe, 0x0c1723, 1.6));
 
     // 1. Lighting (Cold icy mountain sun)
     this.sunLight = new THREE.DirectionalLight(0xe0f2fe, 3.0);
@@ -57,14 +61,14 @@ export class MountainWorld {
     this.peaksGroup = new THREE.Group();
     const peakMat = new THREE.MeshStandardMaterial({
       color: 0x0f172a,
-      roughness: 0.6,
-      metalness: 0.2,
+      roughness: 0.92,
+      metalness: 0.02,
       flatShading: true,
     });
     const snowCapMat = new THREE.MeshStandardMaterial({
       color: 0xf8fafc,
-      roughness: 0.3,
-      metalness: 0.1,
+      roughness: 0.78,
+      metalness: 0.02,
       flatShading: true,
     });
 
@@ -278,14 +282,13 @@ export class MountainWorld {
     }
 
     // 3. Penguin Companion Waddle & Slide Movement
-    const penguinTarget = new THREE.Vector3(
-      this.camera.position.x + mouseX * 14,
-      this.camera.position.y + mouseY * 10 - 2,
+    this.penguinTarget.set(
+      this.camera.position.x + mouseX * 10 + Math.sin(elapsed * 0.45) * 2,
+      this.camera.position.y + mouseY * 7 - 2,
       this.camera.position.z - 16
     );
-
-    const diff = penguinTarget.clone().sub(this.penguinPos);
-    this.penguinVel.add(diff.multiplyScalar(0.04));
+    this.penguinTarget.sub(this.penguinPos);
+    this.penguinVel.addScaledVector(this.penguinTarget, 0.032);
     this.penguinVel.multiplyScalar(0.86);
     this.penguinPos.add(this.penguinVel);
     this.penguinGroup.position.copy(this.penguinPos);
@@ -307,11 +310,6 @@ export class MountainWorld {
 
   public dispose(): void {
     this.scene.remove(this.group);
-    this.farSnow.geometry.dispose();
-    (this.farSnow.material as THREE.Material).dispose();
-    this.midSnow.geometry.dispose();
-    (this.midSnow.material as THREE.Material).dispose();
-    this.nearSnow.geometry.dispose();
-    (this.nearSnow.material as THREE.Material).dispose();
+    disposeWorldGroup(this.group);
   }
 }

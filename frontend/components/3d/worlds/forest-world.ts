@@ -9,6 +9,7 @@
  */
 
 import * as THREE from "three";
+import { disposeWorldGroup } from "./dispose";
 import type { WorldUpdateParams } from "./ocean-world";
 
 export class ForestWorld {
@@ -32,6 +33,7 @@ export class ForestWorld {
   private deerAntlers: THREE.Group;
   private deerPos = new THREE.Vector3(0, -2, 12);
   private deerVel = new THREE.Vector3(0, 0, 0);
+  private deerTarget = new THREE.Vector3();
 
   // Tiger & Lion Climax Encounter
   private encounterGroup: THREE.Group;
@@ -45,6 +47,8 @@ export class ForestWorld {
     this.camera = camera;
     this.group = new THREE.Group();
     this.scene.add(this.group);
+    this.scene.fog = new THREE.FogExp2(0x12271d, 0.011);
+    this.group.add(new THREE.HemisphereLight(0xe9d8a6, 0x06140e, 1.25));
 
     // 1. Lighting (Warm golden forest sunbeams)
     this.sunLight = new THREE.DirectionalLight(0xfef08a, 2.8);
@@ -69,7 +73,7 @@ export class ForestWorld {
     // 3. Dense Forest Canopy Trees Lining the Road
     this.treesGroup = new THREE.Group();
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3f2e21, roughness: 0.9 });
-    const canopyMat = new THREE.MeshStandardMaterial({ color: 0x065f46, roughness: 0.6, flatShading: true });
+    const canopyMat = new THREE.MeshStandardMaterial({ color: 0x0b5d3b, roughness: 0.88, metalness: 0.0, flatShading: true });
     const treeCount = isMobile ? 25 : 65;
 
     for (let i = 0; i < treeCount; i++) {
@@ -127,9 +131,9 @@ export class ForestWorld {
     this.deerGroup = new THREE.Group();
     const deerMat = new THREE.MeshStandardMaterial({
       color: 0xd97706,
-      emissive: 0xb45309,
-      emissiveIntensity: 0.35,
-      roughness: 0.4,
+      emissive: 0x341205,
+      emissiveIntensity: 0.08,
+      roughness: 0.72,
     });
     this.deerBody = new THREE.Mesh(new THREE.CapsuleGeometry(0.7, 1.8, 6, 8), deerMat);
     this.deerBody.rotation.x = Math.PI / 2;
@@ -165,9 +169,9 @@ export class ForestWorld {
     this.tigerGroup = new THREE.Group();
     const tigerMat = new THREE.MeshStandardMaterial({
       color: 0xea580c,
-      emissive: 0xc2410c,
-      emissiveIntensity: 0.4,
-      roughness: 0.4,
+      emissive: 0x341205,
+      emissiveIntensity: 0.08,
+      roughness: 0.75,
     });
     const tigerBody = new THREE.Mesh(new THREE.CapsuleGeometry(1.2, 3.2, 6, 8), tigerMat);
     tigerBody.rotation.x = Math.PI / 2;
@@ -182,9 +186,9 @@ export class ForestWorld {
     this.lionGroup = new THREE.Group();
     const lionMat = new THREE.MeshStandardMaterial({
       color: 0xd97706,
-      emissive: 0x92400e,
-      emissiveIntensity: 0.4,
-      roughness: 0.5,
+      emissive: 0x301504,
+      emissiveIntensity: 0.06,
+      roughness: 0.78,
     });
     const lionBody = new THREE.Mesh(new THREE.CapsuleGeometry(1.3, 3.4, 6, 8), lionMat);
     lionBody.rotation.x = Math.PI / 2;
@@ -253,14 +257,13 @@ export class ForestWorld {
     }
 
     // 4. Deer Companion Bounding Motion
-    const deerTarget = new THREE.Vector3(
-      this.camera.position.x + mouseX * 14,
-      this.camera.position.y - 1.8 + mouseY * 6,
+    this.deerTarget.set(
+      this.camera.position.x + mouseX * 10 + Math.sin(elapsed * 0.33) * 2.5,
+      this.camera.position.y - 1.8 + mouseY * 4,
       this.camera.position.z - 16
     );
-
-    const diff = deerTarget.clone().sub(this.deerPos);
-    this.deerVel.add(diff.multiplyScalar(0.04));
+    this.deerTarget.sub(this.deerPos);
+    this.deerVel.addScaledVector(this.deerTarget, 0.03);
     this.deerVel.multiplyScalar(0.85);
     this.deerPos.add(this.deerVel);
     this.deerGroup.position.copy(this.deerPos);
@@ -308,9 +311,6 @@ export class ForestWorld {
 
   public dispose(): void {
     this.scene.remove(this.group);
-    this.roadMesh.geometry.dispose();
-    (this.roadMesh.material as THREE.Material).dispose();
-    this.sporeParticles.geometry.dispose();
-    (this.sporeParticles.material as THREE.Material).dispose();
+    disposeWorldGroup(this.group);
   }
 }

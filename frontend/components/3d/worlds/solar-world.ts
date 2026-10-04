@@ -9,6 +9,7 @@
  */
 
 import * as THREE from "three";
+import { disposeWorldGroup } from "./dispose";
 import type { WorldUpdateParams } from "./ocean-world";
 
 export class SolarWorld {
@@ -29,11 +30,17 @@ export class SolarWorld {
     this.camera = camera;
     this.group = new THREE.Group();
     this.scene.add(this.group);
+    this.scene.fog = new THREE.FogExp2(0x010205, 0.0025);
+    this.group.add(new THREE.HemisphereLight(0x233b62, 0x000000, 0.22));
 
     // 1. Central Blazing Sun
     const sunGeo = new THREE.SphereGeometry(6.5, 24, 24);
-    const sunMat = new THREE.MeshBasicMaterial({
-      color: 0xffedd5,
+    const sunMat = new THREE.MeshStandardMaterial({
+      color: 0xffd08a,
+      emissive: 0xff6a1a,
+      emissiveIntensity: 2.2,
+      roughness: 0.55,
+      metalness: 0.0,
     });
     this.sunMesh = new THREE.Mesh(sunGeo, sunMat);
     this.sunMesh.position.set(0, 0, -80);
@@ -59,8 +66,8 @@ export class SolarWorld {
       const pGeo = new THREE.SphereGeometry(cfg.radius, 16, 16);
       const pMat = new THREE.MeshStandardMaterial({
         color: cfg.color,
-        roughness: 0.5,
-        metalness: 0.2,
+        roughness: cfg.name === "Earth" ? 0.42 : cfg.name === "Saturn" ? 0.7 : 0.82,
+        metalness: 0.0,
       });
       const pMesh = new THREE.Mesh(pGeo, pMat);
       pGroup.add(pMesh);
@@ -178,11 +185,6 @@ export class SolarWorld {
 
   public dispose(): void {
     this.scene.remove(this.group);
-    this.sunMesh.geometry.dispose();
-    (this.sunMesh.material as THREE.Material).dispose();
-    this.asteroidBelt.geometry.dispose();
-    (this.asteroidBelt.material as THREE.Material).dispose();
-    this.starfield.geometry.dispose();
-    (this.starfield.material as THREE.Material).dispose();
+    disposeWorldGroup(this.group);
   }
 }

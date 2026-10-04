@@ -9,6 +9,7 @@
  */
 
 import * as THREE from "three";
+import { disposeWorldGroup } from "./dispose";
 import type { WorldUpdateParams } from "./ocean-world";
 
 export class VolcanoWorld {
@@ -42,6 +43,8 @@ export class VolcanoWorld {
     this.camera = camera;
     this.group = new THREE.Group();
     this.scene.add(this.group);
+    this.scene.fog = new THREE.FogExp2(0x210b08, 0.014);
+    this.group.add(new THREE.HemisphereLight(0x4a170c, 0x050302, 0.65));
 
     // 1. Lighting (Intense volcanic magma glow)
     this.magmaLight = new THREE.PointLight(0xf97316, 3.5, 120);
@@ -56,12 +59,13 @@ export class VolcanoWorld {
     const lavaGeo = new THREE.PlaneGeometry(160, 160, 24, 24);
     lavaGeo.rotateX(-Math.PI / 2);
     this.lavaPositions = lavaGeo.attributes.position.array as Float32Array;
-    const lavaMat = new THREE.MeshStandardMaterial({
-      color: 0xdc2626,
+    const lavaMat = new THREE.MeshPhysicalMaterial({
+      color: 0x8f1d0d,
       emissive: 0xf97316,
-      emissiveIntensity: 1.6,
-      roughness: 0.2,
-      metalness: 0.1,
+      emissiveIntensity: 1.25,
+      roughness: 0.38,
+      metalness: 0.0,
+      clearcoat: 0.15,
     });
     this.lavaMesh = new THREE.Mesh(lavaGeo, lavaMat);
     this.lavaMesh.position.set(0, -125, 0);
@@ -69,7 +73,7 @@ export class VolcanoWorld {
 
     // 3. Basalt Columns & Crater Canyon Walls
     this.basaltPillars = new THREE.Group();
-    const basaltMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8, flatShading: true });
+    const basaltMat = new THREE.MeshStandardMaterial({ color: 0x120f10, roughness: 0.96, metalness: 0.02, flatShading: true });
     const pillarCount = isMobile ? 12 : 32;
 
     for (let i = 0; i < pillarCount; i++) {
@@ -110,9 +114,9 @@ export class VolcanoWorld {
 
     const dragonMat = new THREE.MeshStandardMaterial({
       color: 0x1e1b4b,
-      emissive: 0x431407,
-      emissiveIntensity: 0.4,
-      roughness: 0.5,
+      emissive: 0x210803,
+      emissiveIntensity: 0.12,
+      roughness: 0.78,
       flatShading: true,
     });
 
@@ -155,8 +159,9 @@ export class VolcanoWorld {
     const wingGeo = new THREE.BoxGeometry(10.0, 0.2, 5.0);
     const wingMat = new THREE.MeshStandardMaterial({
       color: 0x31100b,
-      emissive: 0x7f1d1d,
-      emissiveIntensity: 0.3,
+      emissive: 0x441108,
+      emissiveIntensity: 0.12,
+      roughness: 0.82,
       side: THREE.DoubleSide,
     });
     this.dragonWingL = new THREE.Mesh(wingGeo, wingMat);
@@ -274,11 +279,6 @@ export class VolcanoWorld {
 
   public dispose(): void {
     this.scene.remove(this.group);
-    this.lavaMesh.geometry.dispose();
-    (this.lavaMesh.material as THREE.Material).dispose();
-    this.emberParticles.geometry.dispose();
-    (this.emberParticles.material as THREE.Material).dispose();
-    this.fireStream.geometry.dispose();
-    (this.fireStream.material as THREE.Material).dispose();
+    disposeWorldGroup(this.group);
   }
 }
