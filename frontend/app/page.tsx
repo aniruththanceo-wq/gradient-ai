@@ -155,10 +155,10 @@ export default function HomePage() {
               <div
                 style={{
                   borderRadius: "var(--radius-lg)",
-                  background: "radial-gradient(circle, rgba(18, 99, 78, 0.08) 0%, rgba(255, 255, 255, 0.5) 70%)",
-                  border: "1px solid var(--line-subtle)",
+                  background: "radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, rgba(7, 16, 24, 0.75) 70%)",
+                  border: "1px solid var(--line)",
                   position: "relative",
-                  boxShadow: "var(--shadow-sm)",
+                  boxShadow: "var(--shadow-md)",
                   overflow: "hidden",
                 }}
               >
@@ -262,7 +262,7 @@ export default function HomePage() {
         </section>
 
         {/* SECTION 1: WHAT GRADIENT AI UNDERSTANDS (TELEMETRY) */}
-        <MotionSection id="telemetry" className="section" style={{ background: "rgba(255, 255, 255, 0.72)", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" }}>
+        <MotionSection id="telemetry" className="section" style={{ background: "rgba(5, 14, 20, 0.65)", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", backdropFilter: "blur(8px)" }}>
           <div className="container">
             <div style={{ textAlign: "center", maxWidth: 740, margin: "0 auto 48px" }}>
               <div className="sector-badge">[ SECTOR 01 // TELEMETRY STREAM ]</div>
@@ -382,7 +382,7 @@ export default function HomePage() {
         </MotionSection>
 
         {/* SECTION 3: CAREER & PLACEMENT INTELLIGENCE DEEP DIVE (YEAR 3 & 4) */}
-        <MotionSection id="career" className="section" style={{ background: "rgba(255, 255, 255, 0.72)", borderTop: "1px solid var(--line)" }}>
+        <MotionSection id="career" className="section" style={{ background: "rgba(5, 14, 20, 0.65)", borderTop: "1px solid var(--line)", backdropFilter: "blur(8px)" }}>
           <div className="container grid-2" style={{ alignItems: "center", gap: 48 }}>
             {/* Career Preview Card */}
             <GlowingCard className="card-pad-lg" onMouseEnter={() => emitSpatialEvent({ type: "energy-pulse", intensity: 0.5, color: "#38bdf8" })}>
@@ -514,7 +514,7 @@ export default function HomePage() {
         </MotionSection>
 
         {/* SECTION 5: YEAR-AWARE MATRIX */}
-        <MotionSection id="year-matrix" className="section" style={{ background: "rgba(255, 255, 255, 0.72)", borderTop: "1px solid var(--line)" }}>
+        <MotionSection id="year-matrix" className="section" style={{ background: "rgba(5, 14, 20, 0.65)", borderTop: "1px solid var(--line)", backdropFilter: "blur(8px)" }}>
           <div className="container">
             <div style={{ textAlign: "center", maxWidth: 680, margin: "0 auto 48px" }}>
               <div className="sector-badge">[ SECTOR 05 // PROGRESSION GATES ]</div>
@@ -645,7 +645,7 @@ export default function HomePage() {
         </MotionSection>
 
         {/* CTA SECTION */}
-        <section className="section" style={{ textAlign: "center", background: "radial-gradient(circle, rgba(18, 99, 78, 0.08) 0%, rgba(246, 248, 246, 1) 70%)" }}>
+        <section className="section" style={{ textAlign: "center", background: "radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, rgba(3, 7, 9, 0.9) 70%)" }}>
           <div className="container-narrow">
             <h2 className="section-title" style={{ fontSize: "2.4rem", marginBottom: 16 }}>
               Take Control of Your University Trajectory
@@ -663,7 +663,7 @@ export default function HomePage() {
       </main>
 
       {/* Footer */}
-      <footer style={{ borderTop: "1px solid var(--line)", background: "var(--surface)", padding: "32px 0" }}>
+      <footer style={{ borderTop: "1px solid var(--line)", background: "rgba(3, 7, 10, 0.85)", padding: "32px 0", backdropFilter: "blur(14px)" }}>
         <div className="container" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div className="brand-logo-icon" style={{ width: 24, height: 24, fontSize: "0.78rem" }}>G</div>

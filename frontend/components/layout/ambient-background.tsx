@@ -13,7 +13,7 @@ const SpatialWorld = dynamic(() => import("@/components/3d/spatial-world"), {
 export function AmbientBackground() {
   return (
     <>
-      {/* 1. Persistent 3D Three.js Spatial Universe */}
+      {/* 1. Persistent Route-Driven 3D Three.js Cinematic World */}
       <SpatialWorld />
 
       {/* 2. High-Tech System HUD Telemetry Overlay */}
@@ -34,7 +34,7 @@ export function AmbientBackground() {
           overflow: "hidden",
         }}
       >
-        {/* Top Emerald Radial Atmospheric Glow */}
+        {/* Top Cyber Emerald Radial Glow */}
         <div
           style={{
             position: "absolute",
@@ -42,12 +42,13 @@ export function AmbientBackground() {
             left: "15%",
             width: "60vw",
             height: "50vw",
-            background: "radial-gradient(circle, rgba(18, 99, 78, 0.09) 0%, rgba(18, 99, 78, 0) 70%)",
+            background:
+              "radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0) 70%)",
             filter: "blur(70px)",
           }}
         />
 
-        {/* Right Cyber Teal Horizon Light */}
+        {/* Right Ice Cyan Horizon Light */}
         <div
           style={{
             position: "absolute",
@@ -55,12 +56,13 @@ export function AmbientBackground() {
             right: "-10%",
             width: "50vw",
             height: "50vw",
-            background: "radial-gradient(circle, rgba(25, 114, 120, 0.07) 0%, rgba(25, 114, 120, 0) 70%)",
+            background:
+              "radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, rgba(6, 182, 212, 0) 70%)",
             filter: "blur(60px)",
           }}
         />
 
-        {/* Fine Reticle Dot Matrix Overlay */}
+        {/* Fine Deep Space Dot Matrix Overlay */}
         <div
           style={{
             position: "absolute",
@@ -69,7 +71,7 @@ export function AmbientBackground() {
             width: "100%",
             height: "100%",
             backgroundImage:
-              "radial-gradient(rgba(18, 99, 78, 0.06) 1px, transparent 1px)",
+              "radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px)",
             backgroundSize: "36px 36px",
             opacity: 0.85,
           }}
