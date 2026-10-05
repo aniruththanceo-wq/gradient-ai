@@ -328,14 +328,47 @@ export class VolcanoWorld {
       this.smokeParticles.geometry.attributes.position.needsUpdate = true;
     }
 
-    // 4. Dragon Breathing & Idle Animation
+    // 4. Dragon — AAA Cinematic Creature Kinematics
     if (!reducedMotion) {
-      const breath = Math.sin(elapsed * 1.8);
-      this.dragonHead.rotation.x = Math.PI / 2 + breath * 0.08;
-      this.dragonHead.rotation.y = mouseX * 0.25;
-      this.dragonWingL.rotation.z = Math.sin(elapsed * 2.2) * 0.18;
-      this.dragonWingR.rotation.z = -Math.sin(elapsed * 2.2) * 0.18;
-      this.dragonTail.rotation.z = Math.sin(elapsed * 1.5) * 0.25;
+      // Body breathing: chest scale pulse (slow, deep, biological)
+      const breathFreq = elapsed * 1.4;
+      const breathAmp = Math.sin(breathFreq);
+      const bodyBreathY = 1.0 + breathAmp * 0.032;
+      const bodyBreathX = 1.0 - breathAmp * 0.018; // Lateral squeeze on inhale
+      this.dragonBody.scale.set(bodyBreathX, bodyBreathY, bodyBreathX);
+      // Emissive pulse tied to breathing — lava-lit underbelly glow intensifies on exhale
+      (this.dragonBody.material as THREE.MeshStandardMaterial).emissiveIntensity =
+        0.5 + (1 - breathAmp * 0.5) * 0.3;
+
+      // Idle hover: subtle vertical float + slight roll (creature resting on thermals)
+      const hoverY = Math.sin(elapsed * 0.65) * 0.55 + Math.sin(elapsed * 1.1) * 0.25;
+      const hoverRoll = Math.sin(elapsed * 0.42) * 0.028;
+      this.dragonGroup.position.y = -112 + hoverY;
+      this.dragonGroup.rotation.z = hoverRoll;
+
+      // Head gaze: smoothly track camera with spring damping + breathing nod
+      const targetHeadX = Math.PI / 2 + breathAmp * 0.07 + mouseY * 0.12;
+      const targetHeadY = mouseX * 0.32 + Math.sin(elapsed * 0.8) * 0.06; // Idle curiosity scan
+      this.dragonHead.rotation.x += (targetHeadX - this.dragonHead.rotation.x) * 0.08;
+      this.dragonHead.rotation.y += (targetHeadY - this.dragonHead.rotation.y) * 0.06;
+
+      // Eye intensity flicker — predatory attention
+      (this.dragonEyes.children[0] as THREE.Mesh).material = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(0x22d3ee).multiplyScalar(0.8 + Math.abs(Math.sin(elapsed * 3.2)) * 0.4),
+      });
+
+      // Wings: primary flap + secondary membrane flex
+      const wingFlapPrimary = Math.sin(elapsed * 2.1) * 0.2;
+      const wingMembraneSecondary = Math.sin(elapsed * 3.8 + 0.5) * 0.06; // trailing edge flutter
+      this.dragonWingL.rotation.z = wingFlapPrimary + wingMembraneSecondary;
+      this.dragonWingR.rotation.z = -(wingFlapPrimary + wingMembraneSecondary);
+      // Wing tilt forward/backward on upstroke/downstroke (camber simulation)
+      this.dragonWingL.rotation.x = Math.sin(elapsed * 2.1 + 0.4) * 0.08;
+      this.dragonWingR.rotation.x = Math.sin(elapsed * 2.1 + 0.4) * 0.08;
+
+      // Tail: 3-frequency sinusoidal undulation (tip moves further than base)
+      this.dragonTail.rotation.z = Math.sin(elapsed * 1.5) * 0.28 + Math.sin(elapsed * 2.9) * 0.1;
+      this.dragonTail.rotation.y = Math.sin(elapsed * 0.9) * 0.18; // Lazy lateral sweep
     }
 
     // 5. Fire Torrent Climax (82% - 100% scroll progress)

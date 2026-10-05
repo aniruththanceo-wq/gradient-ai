@@ -519,6 +519,18 @@ export class ForestWorld {
       this.deerLegBR.rotation.x = Math.sin(hopPhase) * 0.55;
     }
 
+    // Deer companion: idle head curiosity when nearly stationary
+    if (!reducedMotion) {
+      const deerSpeed = this.deerVel.length();
+      if (deerSpeed < 0.25) {
+        // Idle: slow head look around, occasional glance at camera
+        this.deerHead.rotation.y = mouseX * 0.28 + Math.sin(elapsed * 0.7) * 0.22;
+        this.deerHead.rotation.x = Math.sin(elapsed * 1.2) * 0.08; // gentle vertical nod
+      } else {
+        this.deerHead.rotation.y += (mouseX * 0.28 - this.deerHead.rotation.y) * 0.08;
+      }
+    }
+
     // 4. Tiger & Lion Climax Encounter (80% - 100% scroll progress)
     if (scrollProgress >= 0.8) {
       const prog = (scrollProgress - 0.8) / 0.2; // 0.0 to 1.0
@@ -537,11 +549,21 @@ export class ForestWorld {
         this.tigerLegBR.rotation.x = Math.sin(stalkPhase) * 0.45;
         this.tigerTail.rotation.z = Math.sin(stalkPhase * 0.5) * 0.35;
 
+        // Tiger spine flex: muscular shoulder roll during stalk
+        this.tigerSpine.rotation.x = Math.sin(stalkPhase * 0.5) * 0.07;
+        this.tigerSpine.scale.y = 1.0 + Math.sin(stalkPhase * 0.5) * 0.02;
+
         this.lionLegFL.rotation.x = Math.sin(stalkPhase * 0.9) * 0.4;
         this.lionLegFR.rotation.x = -Math.sin(stalkPhase * 0.9) * 0.4;
         this.lionLegBL.rotation.x = -Math.sin(stalkPhase * 0.9) * 0.4;
         this.lionLegBR.rotation.x = Math.sin(stalkPhase * 0.9) * 0.4;
         this.lionTail.rotation.z = -Math.sin(stalkPhase * 0.5) * 0.35;
+
+        // Lion chest breathing: slow deep biological rhythm
+        const lionBreath = Math.sin(elapsed * 1.6);
+        this.lionChest.scale.set(1.0 - lionBreath * 0.015, 1.0 + lionBreath * 0.025, 1.0 - lionBreath * 0.015);
+        // Lion head sway: noble slow side scan
+        this.lionHead.rotation.y = Math.sin(elapsed * 0.6) * 0.15;
 
         this.clashOpacity = 0;
       } else if (prog >= 0.35 && prog < 0.78) {
@@ -553,8 +575,18 @@ export class ForestWorld {
         this.tigerGroup.rotation.z = -clashIntensity * 0.42;
         this.lionGroup.rotation.z = clashIntensity * 0.42;
 
+        // Anticipation: spine arches back before impact
+        this.tigerSpine.rotation.x = -clashIntensity * 0.18;
         this.tigerHead.rotation.x = -clashIntensity * 0.3;
         this.lionHead.rotation.x = -clashIntensity * 0.3;
+
+        // Lion chest heaves rapidly during clash excitement
+        const rapidBreath = Math.sin(elapsed * 4.5 * (1 + clashIntensity));
+        this.lionChest.scale.set(
+          1.0 - rapidBreath * 0.025,
+          1.0 + rapidBreath * 0.042,
+          1.0 - rapidBreath * 0.025
+        );
 
         this.clashOpacity = clashIntensity * 0.95;
         (this.clashParticles.material as THREE.PointsMaterial).opacity = this.clashOpacity;
@@ -564,8 +596,12 @@ export class ForestWorld {
         this.lionGroup.position.set(9.5, -2, 0);
         this.tigerGroup.rotation.z = 0;
         this.lionGroup.rotation.z = 0;
+        this.tigerSpine.rotation.x = 0;
         this.tigerHead.rotation.x = 0;
         this.lionHead.rotation.x = 0;
+        // Settle breathing back to calm rhythm
+        const settleBreath = Math.sin(elapsed * 1.6);
+        this.lionChest.scale.set(1.0 - settleBreath * 0.015, 1.0 + settleBreath * 0.025, 1.0 - settleBreath * 0.015);
         this.clashOpacity = Math.max(0, this.clashOpacity - delta * 2.2);
         (this.clashParticles.material as THREE.PointsMaterial).opacity = this.clashOpacity;
       }

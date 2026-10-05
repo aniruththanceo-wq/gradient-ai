@@ -343,10 +343,38 @@ export class MountainWorld {
 
     if (!reducedMotion) {
       const speed = this.penguinVel.length();
+      const waddlePhase = elapsed * 7.5 * Math.max(speed, 0.4);
+
       // Natural waddling gait rocking
-      this.penguinGroup.rotation.z = Math.sin(elapsed * 7.5 * Math.max(speed, 0.4)) * 0.22;
+      const bodySway = Math.sin(waddlePhase) * 0.22;
+      this.penguinGroup.rotation.z = bodySway;
       this.penguinGroup.rotation.y = -this.penguinVel.x * 0.15;
-      this.penguinHead.rotation.y = mouseX * 0.35;
+
+      // Head stabilization: gyroscopic counter-rotation — head stays level while body sways
+      this.penguinHead.rotation.z = -bodySway * 0.72;
+
+      if (speed > 0.15) {
+        // Active locomotion: foot alternation (left/right step timing)
+        // Flippers counterswing for balance (opposite to body lean)
+        const flipperSwing = Math.sin(waddlePhase) * 0.38;
+        const children = this.penguinFlippers.children;
+        if (children[0]) children[0].rotation.z = -0.25 + flipperSwing;  // Left flipper
+        if (children[1]) children[1].rotation.z =  0.25 - flipperSwing;  // Right flipper
+
+        // Head curiosity: watches direction of travel
+        this.penguinHead.rotation.y += (-this.penguinVel.x * 0.4 - this.penguinHead.rotation.y) * 0.1;
+      } else {
+        // Idle curiosity: slow head look around + vertical nod
+        this.penguinHead.rotation.y = mouseX * 0.35 + Math.sin(elapsed * 0.65) * 0.28;
+        this.penguinHead.rotation.x = Math.sin(elapsed * 1.1) * 0.1; // Gentle nod
+        // Resting flippers hang relaxed
+        const children = this.penguinFlippers.children;
+        if (children[0]) children[0].rotation.z = -0.25;
+        if (children[1]) children[1].rotation.z =  0.25;
+      }
+
+      // Body bob: vertical hop cadence synchronized to waddling frequency
+      this.penguinGroup.position.y += Math.abs(Math.sin(waddlePhase)) * 0.18 * Math.min(speed * 2, 1.0);
     }
   }
 
